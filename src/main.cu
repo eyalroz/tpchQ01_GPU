@@ -1,4 +1,5 @@
 #include "helper.hpp"
+#include "extra_pointer_traits.hpp"
 #include "data_types.h"
 #include "constants.hpp"
 #include "bit_operations.hpp"
@@ -388,94 +389,156 @@ void precompute_filter_for_table_chunk(
     }
 }
 
-cardinality_t load_table_columns_from_files(
-    const q1_params_t&      params,
-    lineitem& __restrict__  li)
+bool columns_are_cached(
+    const q1_params_t&  params,
+    bool                looking_for_compressed_columns)
 {
-    cardinality_t cardinality;
-
-    std::unique_ptr< ship_date_t[]      > _shipdate;
-    std::unique_ptr< return_flag_t[]    > _returnflag;
-    std::unique_ptr< line_status_t[]    > _linestatus;
-    std::unique_ptr< discount_t[]       > _discount;
-    std::unique_ptr< tax_t[]            > _tax;
-    std::unique_ptr< extended_price_t[] > _extendedprice;
-    std::unique_ptr< quantity_t[]       > _quantity;
-
     auto data_files_directory =
         filesystem::path(defaults::tpch_data_subdirectory) / std::to_string(params.scale_factor);
-    auto parsed_columns_are_cached =
-        filesystem::exists(data_files_directory / "shipdate.bin");
-    if (parsed_columns_are_cached) {
-        // binary files (seem to) exist, load them
-        cardinality = filesystem::file_size(data_files_directory / "shipdate.bin") / sizeof(ship_date_t);
-        if (cardinality == cardinality_of_scale_factor_1) {
-            cardinality = ((double) cardinality) * params.scale_factor;
-        }
-        cout << "Lineitem table cardinality for scale factor " << params.scale_factor << " is " << cardinality << endl;
-        if (cardinality == 0) {
-            throw std::runtime_error("The lineitem table column cardinality should not be 0");
-        }
-        load_column_from_binary_file(_shipdate,      cardinality, data_files_directory, "shipdate.bin");
-        load_column_from_binary_file(_returnflag,    cardinality, data_files_directory, "returnflag.bin");
-        load_column_from_binary_file(_linestatus,    cardinality, data_files_directory, "linestatus.bin");
-        load_column_from_binary_file(_discount,      cardinality, data_files_directory, "discount.bin");
-        load_column_from_binary_file(_tax,           cardinality, data_files_directory, "tax.bin");
-        load_column_from_binary_file(_extendedprice, cardinality, data_files_directory, "extendedprice.bin");
-        load_column_from_binary_file(_quantity,      cardinality, data_files_directory, "quantity.bin");
+    auto some_cached_column_filename = data_files_directory /
+        (std::string(looking_for_compressed_columns ? "compressed_" : "") + "shipdate.bin");
+    return filesystem::exists(some_cached_column_filename);
+    // TODO: We could check that _all_ cache files are present instead of just an arbirary one.
+}
 
-        // See: We don't need no stinkin' macros these days. Actually, we can do something
-        // similar with a lot of the replicated code in this file
-        for_each_argument(
-            [&](auto tup){
-                std::get<0>(tup).cardinality = cardinality;
-                std::get<0>(tup).m_ptr = std::get<1>(tup).release();
-            },
-            tie(li.l_shipdate,      _shipdate),
-            tie(li.l_returnflag,    _returnflag),
-            tie(li.l_linestatus,    _linestatus),
-            tie(li.l_discount,      _discount),
-            tie(li.l_tax,           _tax),
-            tie(li.l_extendedprice, _extendedprice), 
-            tie(li.l_quantity,      _quantity)
-        );
-    } else {
-        // TODO: Take this out into a script
-
-        filesystem::create_directory(defaults::tpch_data_subdirectory);
-        filesystem::create_directory(data_files_directory);
-        auto table_file_path = data_files_directory / lineitem_table_file_name;
-        if (not filesystem::exists(table_file_path)) {
-            throw std::runtime_error("Cannot locate table text file " + table_file_path.string());
-            // Not generating it ourselves - that's: 1. Not healthy and 2. Not portable;
-            // setup scripts are intended to do that
-        }
-        cout << "Parsing the lineitem table in file " << table_file_path << endl;
-        li.FromFile(table_file_path.c_str());
-        cardinality = li.l_extendedprice.cardinality;
-        if (cardinality == cardinality_of_scale_factor_1) {
-            cardinality = ((double) cardinality) * params.scale_factor;
-        }
-        if (cardinality == 0) {
-            throw std::runtime_error("The lineitem table column cardinality should not be 0");
-        }
-        cout << "CSV read & parsed; table length: " << cardinality << " records." << endl;
-        auto write_to = [&](auto& uptr, const char* filename) {
-            using T = typename std::remove_pointer<typename std::decay<decltype(uptr.get())>::type>::type;
-            load_column_from_binary_file(uptr.get(), cardinality, data_files_directory, "shipdate.bin");
-        };
-        write_column_to_binary_file(li.l_shipdate.get(),      cardinality, data_files_directory, "shipdate.bin");
-        write_column_to_binary_file(li.l_returnflag.get(),    cardinality, data_files_directory, "returnflag.bin");
-        write_column_to_binary_file(li.l_linestatus.get(),    cardinality, data_files_directory, "linestatus.bin");
-        write_column_to_binary_file(li.l_discount.get(),      cardinality, data_files_directory, "discount.bin");
-        write_column_to_binary_file(li.l_tax.get(),           cardinality, data_files_directory, "tax.bin");
-        write_column_to_binary_file(li.l_extendedprice.get(), cardinality, data_files_directory, "extendedprice.bin");
-        write_column_to_binary_file(li.l_quantity.get(),      cardinality, data_files_directory, "quantity.bin");
+template <template <typename> class UniquePtr, bool Compressed>
+cardinality_t load_cached_columns(
+    const q1_params_t&                         params,
+    input_buffer_set<UniquePtr, Compressed>&   buffer_set,
+    lineitem&                                  li)
+{
+    auto data_files_directory =
+        filesystem::path(defaults::tpch_data_subdirectory) / std::to_string(params.scale_factor);
+    std::string filename_prefix = Compressed ? "compressed_" : "";
+    auto shipdate_element_size = Compressed ? sizeof(compressed::ship_date_t) : sizeof(ship_date_t);
+    auto cached_compressed_shipdate_filename = data_files_directory / (filename_prefix +  "shipdate.bin");
+    cardinality_t cardinality = filesystem::file_size(cached_compressed_shipdate_filename) / shipdate_element_size;
+    if (cardinality == cardinality_of_scale_factor_1) {
+        // This handles sub-scale-factor-1 arguments, for which the actual table and column files are SF 1
+        cardinality = ((double) cardinality) * params.scale_factor;
     }
+    if (cardinality == 0) {
+        throw std::runtime_error("The lineitem table column cardinality should not be 0");
+    }
+
+    cardinality_t return_flag_container_count =
+        Compressed ? div_rounding_up(cardinality, return_flag_values_per_container) : cardinality;
+    cardinality_t line_status_container_count =
+        Compressed ? div_rounding_up(cardinality, line_status_values_per_container) : cardinality;
+
+    buffer_set.ship_date      = extra_pointer_traits<decltype(buffer_set.ship_date      )>::make(cardinality);
+    buffer_set.tax            = extra_pointer_traits<decltype(buffer_set.tax)            >::make(cardinality);
+    buffer_set.discount       = extra_pointer_traits<decltype(buffer_set.discount)       >::make(cardinality);
+    buffer_set.quantity       = extra_pointer_traits<decltype(buffer_set.quantity)       >::make(cardinality);
+    buffer_set.extended_price = extra_pointer_traits<decltype(buffer_set.extended_price) >::make(cardinality);
+    buffer_set.return_flag    = extra_pointer_traits<decltype(buffer_set.return_flag)    >::make(return_flag_container_count);
+    buffer_set.line_status    = extra_pointer_traits<decltype(buffer_set.line_status)    >::make(line_status_container_count);
+    load_column_from_binary_file(buffer_set.ship_date.get(),      cardinality, data_files_directory, filename_prefix + "shipdate"      + ".bin");
+    load_column_from_binary_file(buffer_set.discount.get(),       cardinality, data_files_directory, filename_prefix + "discount"      + ".bin");
+    load_column_from_binary_file(buffer_set.tax.get(),            cardinality, data_files_directory, filename_prefix + "tax"           + ".bin");
+    load_column_from_binary_file(buffer_set.quantity.get(),       cardinality, data_files_directory, filename_prefix + "quantity"      + ".bin");
+    load_column_from_binary_file(buffer_set.extended_price.get(), cardinality, data_files_directory, filename_prefix + "extendedprice" + ".bin");
+    load_column_from_binary_file(buffer_set.return_flag.get(),    return_flag_container_count, data_files_directory, filename_prefix + "returnflag"    + ".bin");
+    load_column_from_binary_file(buffer_set.line_status.get(),    line_status_container_count, data_files_directory, filename_prefix + "linestatus"    + ".bin");
+
+
+
+/*
+    for_each_argument(
+        [&](auto tup){
+            auto& ptr           = std::get<0>(tup);
+            const auto& name    = std::get<1>(tup);
+            cardinality_t count = std::get<2>(tup);
+            using traits = typename extra_pointer_traits<decltype(ptr)>;
+            ptr = traits::make(count);
+            load_column_from_binary_file(
+                ptr.get(), cardinality, data_files_directory, filename_prefix + name + ".bin");
+        },
+        tie(buffer_set.ship_date,      "shipdate",       cardinality                 ),
+        tie(buffer_set.discount,       "discount",       cardinality                 ),
+        tie(buffer_set.tax,            "tax",            cardinality                 ),
+        tie(buffer_set.quantity,       "quantity",       cardinality                 ),
+        tie(buffer_set.extended_price, "extendedprice",  cardinality                 ),
+        tie(buffer_set.return_flag,    "returnflag",     return_flag_container_count ),
+        tie(buffer_set.line_status,    "linestatus",     line_status_container_count )
+    );
+*/
     return cardinality;
 }
 
-// Note: This should be a variant
+template <template <typename> class Ptr, bool Compressed>
+void write_columns_to_cache(
+    q1_params_t                         params,
+    input_buffer_set<Ptr, Compressed>&  buffer_set,
+    cardinality_t                       cardinality)
+{
+    auto data_files_directory =
+        filesystem::path(defaults::tpch_data_subdirectory) / std::to_string(params.scale_factor);
+    std::string filename_prefix = Compressed ? "compressed_" : "";
+    cardinality_t return_flag_container_count = Compressed ? div_rounding_up(cardinality, return_flag_values_per_container) : cardinality;
+    cardinality_t line_status_container_count = Compressed ? div_rounding_up(cardinality, line_status_values_per_container) : cardinality;
+
+    write_column_to_binary_file(&buffer_set.ship_date[0],      cardinality, data_files_directory, filename_prefix + "shipdate" + ".bin");
+    write_column_to_binary_file(&buffer_set.discount[0],       cardinality, data_files_directory, filename_prefix + "discount" + ".bin");
+    write_column_to_binary_file(&buffer_set.tax[0],            cardinality, data_files_directory, filename_prefix + "tax" + ".bin");
+    write_column_to_binary_file(&buffer_set.quantity[0],       cardinality, data_files_directory, filename_prefix + "quantity" + ".bin");
+    write_column_to_binary_file(&buffer_set.extended_price[0], cardinality, data_files_directory, filename_prefix + "extendedprice" + ".bin");
+    write_column_to_binary_file(&buffer_set.return_flag[0],    return_flag_container_count, data_files_directory, filename_prefix + "returnflag" + ".bin");
+    write_column_to_binary_file(&buffer_set.line_status[0],    line_status_container_count, data_files_directory, filename_prefix + "linestatus" + ".bin");
+
+/*    for_each_argument(
+        [&](auto tup){
+            const auto& ptr     = std::get<0>(tup);
+            auto raw_ptr        = // extra_pointer_traits<decltype(ptr)>::get();
+                &ptr[0];
+            const auto& name    = std::get<1>(tup);
+            cardinality_t count = std::get<2>(tup);
+            write_column_to_binary_file(
+                raw_ptr, count, data_files_directory, filename_prefix + name + ".bin");
+        },
+        tie(buffer_set.ship_date,      "shipdate",      cardinality                 ),
+        tie(buffer_set.discount,       "discount",      cardinality                 ),
+        tie(buffer_set.tax,            "tax",           cardinality                 ),
+        tie(buffer_set.quantity,       "quantity",      cardinality                 ),
+        tie(buffer_set.extended_price, "extendedprice", cardinality                 ),
+        tie(buffer_set.return_flag,    "returnflag",    return_flag_container_count ),
+        tie(buffer_set.line_status,    "linestatus",    line_status_container_count )
+    );
+    */
+}
+
+cardinality_t parse_table_file_into_columns(
+    const q1_params_t&      params,
+    lineitem&               li)
+{
+    cardinality_t cardinality;
+
+    auto data_files_directory =
+        filesystem::path(defaults::tpch_data_subdirectory) / std::to_string(params.scale_factor);
+    // TODO: Take this out into a script
+
+    filesystem::create_directory(defaults::tpch_data_subdirectory);
+    filesystem::create_directory(data_files_directory);
+    auto table_file_path = data_files_directory / lineitem_table_file_name;
+    cout << "Parsing the lineitem table in file " << table_file_path << endl;
+    if (not filesystem::exists(table_file_path)) {
+        throw std::runtime_error("Cannot locate table text file " + table_file_path.string());
+        // Not generating it ourselves - that's: 1. Not healthy and 2. Not portable;
+        // setup scripts are intended to do that
+    }
+    li.FromFile(table_file_path.c_str());
+    cardinality = li.l_extendedprice.cardinality;
+    if (cardinality == cardinality_of_scale_factor_1) {
+        cardinality = ((double) cardinality) * params.scale_factor;
+    }
+    if (cardinality == 0) {
+        throw std::runtime_error("The lineitem table column cardinality should not be 0");
+    }
+    cout << "CSV read & parsed; table length: " << cardinality << " records." << endl;
+    return cardinality;
+}
+
+// Note: This should be a variant; or we could just templatize more.
 struct stream_input_buffer_sets {
     std::vector<input_buffer_set<cuda::memory::device::unique_ptr, is_not_compressed > > uncompressed;
     std::vector<input_buffer_set<cuda::memory::device::unique_ptr, is_compressed     > > compressed;
@@ -735,21 +798,11 @@ void execute_query_1_once(
     streams[0].synchronize();
 }
 
-int main(int argc, char** argv) {
-    make_sure_we_are_on_cpu_core_0();
-
-    auto params = parse_command_line(argc, argv);
-    morsel_size = params.num_tuples_per_kernel_launch;
-
-    lineitem li((size_t)(max_line_items_per_sf * std::max(params.scale_factor, 1.0)));
-        // Note: lineitem should really not need this cap, it should just adjust
-        // allocated space as the need arises (and start with an estimate based on
-        // the file size
-    auto cardinality = load_table_columns_from_files(params, li);
-
-    cpu_coprocessor = (params.use_coprocessing || params.use_filter_pushdown) ?  new CoProc(li, true) : nullptr;
-
-    input_buffer_set<cuda::memory::host::unique_ptr, is_compressed> compressed {
+input_buffer_set<cuda::memory::host::unique_ptr, is_compressed> compress_columns(
+    input_buffer_set<plain_ptr, is_not_compressed>  uncompressed,
+    cardinality_t                                   cardinality)
+{
+    input_buffer_set<cuda::memory::host::unique_ptr, is_compressed> compressed = {
         cuda::memory::host::make_unique< compressed::ship_date_t[]      >(cardinality),
         cuda::memory::host::make_unique< compressed::discount_t[]       >(cardinality),
         cuda::memory::host::make_unique< compressed::extended_price_t[] >(cardinality),
@@ -760,47 +813,160 @@ int main(int argc, char** argv) {
         cuda::memory::host::make_unique< bit_container_t[] >(div_rounding_up(cardinality, bits_per_container))
     };
 
-    input_buffer_set<plain_ptr, is_not_compressed> uncompressed {
+    cout << "Compressing column data... " << flush;
+
+    // Man, we really need to have a sub-byte-length-value container class
+    std::memset(compressed.return_flag.get(), 0, div_rounding_up(cardinality, return_flag_values_per_container));
+    std::memset(compressed.line_status.get(), 0, div_rounding_up(cardinality, line_status_values_per_container));
+    for(cardinality_t i = 0; i < cardinality; i++) {
+        compressed.ship_date[i]      = uncompressed.ship_date[i] - ship_date_frame_of_reference;
+        compressed.discount[i]       = uncompressed.discount[i]; // we're keeping the factor 100 scaling
+        compressed.extended_price[i] = uncompressed.extended_price[i];
+        compressed.quantity[i]       = uncompressed.quantity[i] / 100;
+        compressed.tax[i]            = uncompressed.tax[i]; // we're keeping the factor 100 scaling
+        set_bit_resolution_element<log_return_flag_bits, cardinality_t>(
+            compressed.return_flag.get(), i, encode_return_flag(uncompressed.return_flag[i]));
+        set_bit_resolution_element<log_line_status_bits, cardinality_t>(
+            compressed.line_status.get(), i, encode_line_status(uncompressed.line_status[i]));
+        assert( (ship_date_t)      compressed.ship_date[i]      == uncompressed.ship_date[i] - ship_date_frame_of_reference);
+        assert( (discount_t)       compressed.discount[i]       == uncompressed.discount[i]);
+        assert( (extended_price_t) compressed.extended_price[i] == uncompressed.extended_price[i]);
+        assert( (quantity_t)       compressed.quantity[i]       == uncompressed.quantity[i] / 100);
+            // not keeping the scaling here since we know the data is all integral; you could call this a form
+            // of compression
+        assert( (tax_t)            compressed.tax[i]            == uncompressed.tax[i]);
+    }
+    for(cardinality_t i = 0; i < cardinality; i++) {
+        assert(decode_return_flag(get_bit_resolution_element<log_return_flag_bits, cardinality_t>(compressed.return_flag.get(), i)) == uncompressed.return_flag[i]);
+        assert(decode_line_status(get_bit_resolution_element<log_line_status_bits, cardinality_t>(compressed.line_status.get(), i)) == uncompressed.line_status[i]);
+    }
+
+    cout << "done." << endl;
+    return compressed;
+}
+
+//template <template <typename> class Ptr>
+//void test01(
+//    input_buffer_set<Ptr, is_compressed>&   buffer_set)
+//{
+//    for_each_argument(
+//        [&](auto tup){
+//            auto& ptr           = std::get<0>(tup);
+//            const auto& name    = std::get<1>(tup);
+//            using traits = typename extra_pointer_traits<decltype(ptr)>;
+//            ptr = traits::make(count);
+//            load_column_from_binary_file(
+//                ptr.get(), 100, "", name + ".bin");
+//        },
+//        tie(buffer_set.ship_date,      "shipdate"        ),
+//        tie(buffer_set.discount,       "discount"        ),
+//        tie(buffer_set.tax,            "tax"             ),
+//        tie(buffer_set.quantity,       "quantity"        ),
+//        tie(buffer_set.extended_price, "extendedprice"   ),
+//        tie(buffer_set.return_flag,    "returnflag"      ),
+//        tie(buffer_set.line_status,    "linestatus"      )
+//    );
+//}
+
+
+input_buffer_set<plain_ptr, is_not_compressed>
+get_buffers_inside(lineitem& li)
+{
+    return {
         li.l_shipdate.get(),
         li.l_discount.get(),
         li.l_extendedprice.get(),
         li.l_tax.get(),
         li.l_quantity.get(),
         li.l_returnflag.get(),
-        li.l_linestatus.get(),
+        li.l_linestatus.get()
     };
+};
 
-    if (params.apply_compression) {
-        cout << "Preprocessing/compressing column data... " << flush;
 
-        // Man, we really need to have a sub-byte-length-value container class
-        std::memset(compressed.return_flag.get(), 0, div_rounding_up(cardinality, return_flag_values_per_container));
-        std::memset(compressed.line_status.get(), 0, div_rounding_up(cardinality, line_status_values_per_container));
-        for(cardinality_t i = 0; i < cardinality; i++) {
-            compressed.ship_date[i]      = uncompressed.ship_date[i] - ship_date_frame_of_reference;
-            compressed.discount[i]       = uncompressed.discount[i]; // we're keeping the factor 100 scaling
-            compressed.extended_price[i] = uncompressed.extended_price[i];
-            compressed.quantity[i]       = uncompressed.quantity[i] / 100;
-            compressed.tax[i]            = uncompressed.tax[i]; // we're keeping the factor 100 scaling
-            set_bit_resolution_element<log_return_flag_bits, cardinality_t>(
-                compressed.return_flag.get(), i, encode_return_flag(uncompressed.return_flag[i]));
-            set_bit_resolution_element<log_line_status_bits, cardinality_t>(
-                compressed.line_status.get(), i, encode_line_status(uncompressed.line_status[i]));
-            assert( (ship_date_t)      compressed.ship_date[i]      == uncompressed.ship_date[i] - ship_date_frame_of_reference);
-            assert( (discount_t)       compressed.discount[i]       == uncompressed.discount[i]);
-            assert( (extended_price_t) compressed.extended_price[i] == uncompressed.extended_price[i]);
-            assert( (quantity_t)       compressed.quantity[i]       == uncompressed.quantity[i] / 100);
-                // not keeping the scaling here since we know the data is all integral; you could call this a form
-                // of compression
-            assert( (tax_t)            compressed.tax[i]            == uncompressed.tax[i]);
+/*
+ * We have to do this, since the lineitem destructor releases... :-(
+ */
+void move_buffers_into_lineitem_object(
+    input_buffer_set<plugged_unique_ptr, is_not_compressed>&  outside_buffer_set,
+    lineitem&                                                 li,
+    cardinality_t                                             cardinality)
+{
+    for_each_argument(
+        [&](auto tup){
+            std::get<0>(tup).cardinality = cardinality;
+            std::get<0>(tup).m_ptr = std::get<1>(tup).release();
+        },
+        tie(li.l_shipdate,       outside_buffer_set.ship_date),
+        tie(li.l_discount,       outside_buffer_set.discount),
+        tie(li.l_tax,            outside_buffer_set.tax),
+        tie(li.l_quantity,       outside_buffer_set.quantity),
+        tie(li.l_extendedprice,  outside_buffer_set.extended_price),
+        tie(li.l_returnflag,     outside_buffer_set.return_flag),
+        tie(li.l_linestatus,     outside_buffer_set.line_status)
+    );
+}
+
+
+int main(int argc, char** argv) {
+    make_sure_we_are_on_cpu_core_0();
+
+    auto params = parse_command_line(argc, argv);
+    morsel_size = params.num_tuples_per_kernel_launch;
+    cardinality_t cardinality;
+
+    lineitem li((size_t)(max_line_items_per_sf * std::max(params.scale_factor, 1.0)));
+        // Note: lineitem should really not need this cap, it should just adjust
+        // allocated space as the need arises (and start with an estimate based on
+        // the file size
+    input_buffer_set<plugged_unique_ptr, is_not_compressed> uncompressed_outside_li;
+    input_buffer_set<plain_ptr, is_not_compressed> uncompressed;
+        // If we parse, we have to go through an "lineitem" object which holds its
+        // own pointers, while we need this class, which is the same template for
+        // the compressed as uncompressed case. For this reason we have these two
+        // objects, using the first, moving it into li, then using the second as
+        // a sort of a facade for li.
+
+    input_buffer_set<cuda::memory::host::unique_ptr, is_compressed> compressed;
+        // Compressed columns are handled entirely independently of lineitem objects,
+        // so we don't need the two input_buffer_set objects
+
+    auto columns_to_process_are_cached = columns_are_cached(params, params.apply_compression);
+
+    if (columns_to_process_are_cached) {
+        if (params.apply_compression) {
+            cardinality = load_cached_columns(params, compressed, li);
         }
-        for(cardinality_t i = 0; i < cardinality; i++) {
-            assert(decode_return_flag(get_bit_resolution_element<log_return_flag_bits, cardinality_t>(compressed.return_flag.get(), i)) == uncompressed.return_flag[i]);
-            assert(decode_line_status(get_bit_resolution_element<log_line_status_bits, cardinality_t>(compressed.line_status.get(), i)) == uncompressed.line_status[i]);
+        else {
+            cardinality = load_cached_columns(params, uncompressed_outside_li, li);
+            move_buffers_into_lineitem_object(uncompressed_outside_li, li, cardinality);
+            uncompressed = get_buffers_inside(li);
         }
-
-        cout << "done." << endl;
     }
+    else {
+        if (columns_are_cached(params, is_not_compressed)) {
+            cardinality = load_cached_columns(params, uncompressed_outside_li, li);
+            move_buffers_into_lineitem_object(uncompressed_outside_li, li, cardinality);
+            uncompressed = get_buffers_inside(li);
+        }
+        else {
+            cardinality = parse_table_file_into_columns(params, li);
+            uncompressed = get_buffers_inside(li);
+            write_columns_to_cache(params, uncompressed, cardinality);
+                // We write the uncompressed columns to cache files
+                // even if our interest is in the compressed ones
+        }
+
+        if (params.apply_compression) {
+            compressed = compress_columns(uncompressed, cardinality);
+            write_columns_to_cache(params, compressed, cardinality);
+        }
+    }
+
+    cpu_coprocessor = (params.use_coprocessing or params.use_filter_pushdown) ?  new CoProc(li, true) : nullptr;
+
+    // We don't need li beyond this point. Actually, we should need it at all except dfor parsing perhaps
+
 
     // Note:
     // We are not timing the host-side allocations here. In a real DBMS, these will likely only be
@@ -903,11 +1069,6 @@ int main(int argc, char** argv) {
         std::chrono::duration<double> duration(end - start);
         cout << "done." << endl;
         results_file << duration.count() << '\n';
-        // if (cpu_coprocessor) { 
-        //     assert_always(cpu_coprocessor->numExtantGroups() == 4);
-        //         // Actually, for scale factors under, say, 0.001, this
-        //         // may realistically end up being 3 instead of 4
-        // }
         if (params.should_print_results) {
             print_results(aggregates_on_host, cardinality);
         }

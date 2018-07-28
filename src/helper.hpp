@@ -4,6 +4,9 @@
  * and didn't fit elsewhere
  */
 #pragma once
+
+#include "extra_pointer_traits.hpp"
+
 #include <cuda_runtime.h>
 #include <cuda/api_wrappers.h>
 #include <iostream>
@@ -14,6 +17,48 @@
 #include <iomanip>
 #include <ctime>
 #include <chrono>
+
+
+template <typename T>
+using plugged_unique_ptr = std::unique_ptr<T>;
+
+template <typename T>
+using plain_ptr = std::conditional_t<std::is_array<T>::value, std::decay_t<T>, std::decay_t<T>*>;
+
+inline void assert_always(bool a) {
+    assert(a);
+    if (!a) {
+        fprintf(stderr, "Assert always failed!");
+        exit(EXIT_FAILURE);
+    }
+}
+
+
+template <typename T>
+struct extra_pointer_traits<cuda::memory::host::unique_ptr<T[]>>
+{
+    using ptr_type = cuda::memory::host::unique_ptr<T[]>;
+    using element_type = T;
+
+    static T* release(ptr_type& ptr) { return ptr.release(); }
+    static ptr_type make(size_t count)
+    {
+        return cuda::memory::host::make_unique<T[]>(count);
+    }
+};
+
+template <typename T>
+struct extra_pointer_traits<cuda::memory::host::unique_ptr<T>>
+{
+    using ptr_type = cuda::memory::host::unique_ptr<T>;
+    using element_type = T;
+
+    static T* release(ptr_type& ptr) { return ptr.release(); }
+    static ptr_type make()
+    {
+        return cuda::memory::host::make_unique<T>();
+    }
+};
 
 void get_device_properties(){
     int32_t device_cnt = 0;
@@ -73,19 +118,6 @@ std::pair<std::string,std::string> split_once(std::string delimited, char delimi
 
 // Would be nice to avoid actually declaring the following 3 types and just using plain aggregates
 
-template <typename T>
-using plugged_unique_ptr = std::unique_ptr<T>;
-
-template <typename T>
-using plain_ptr = std::conditional_t<std::is_array<T>::value, std::decay_t<T>, std::decay_t<T>*>;
-
-inline void assert_always(bool a) {
-    assert(a);
-    if (!a) {
-        fprintf(stderr, "Assert always failed!");
-        exit(EXIT_FAILURE);
-    }
-}
 
 // Note: This will force casts to int. It's not a problem
 // the way our code is written, but otherwise it needs to be generalized
