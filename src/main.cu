@@ -907,6 +907,69 @@ void move_buffers_into_lineitem_object(
     );
 }
 
+void allocate_non_input_resources(
+    cuda::device_t<>                cuda_device,
+    q1_params_t                     params,
+    cardinality_t                   cardinality,
+    device_aggregates_t&            aggregates_on_device,
+    host_aggregates_t&              aggregates_on_host,
+    stream_input_buffer_sets&       stream_input_buffer_sets
+)
+
+{
+    aggregates_on_host = {
+        std::make_unique< sum_quantity_t[]         >(num_potential_groups),
+        std::make_unique< sum_base_price_t[]       >(num_potential_groups),
+        std::make_unique< sum_discounted_price_t[] >(num_potential_groups),
+        std::make_unique< sum_charge_t []          >(num_potential_groups),
+        std::make_unique< sum_discount_t[]         >(num_potential_groups),
+        std::make_unique< cardinality_t[]          >(num_potential_groups)
+    };
+
+    aggregates_on_device = {
+        cuda::memory::device::make_unique< sum_quantity_t[]         >(cuda_device, num_potential_groups),
+        cuda::memory::device::make_unique< sum_base_price_t[]       >(cuda_device, num_potential_groups),
+        cuda::memory::device::make_unique< sum_discounted_price_t[] >(cuda_device, num_potential_groups),
+        cuda::memory::device::make_unique< sum_charge_t []          >(cuda_device, num_potential_groups),
+        cuda::memory::device::make_unique< sum_discount_t[]         >(cuda_device, num_potential_groups),
+        cuda::memory::device::make_unique< cardinality_t[]          >(cuda_device, num_potential_groups)
+    };
+
+    if (params.apply_compression) {
+        stream_input_buffer_sets.compressed.reserve(params.num_gpu_streams);
+    } else {
+        stream_input_buffer_sets.uncompressed.reserve(params.num_gpu_streams);
+    }
+
+    for (int i = 0; i < params.num_gpu_streams; ++i) {
+        if (params.apply_compression) {
+            auto stream_input_buffer_set = input_buffer_set<cuda::memory::device::unique_ptr, is_compressed>{
+                cuda::memory::device::make_unique< compressed::ship_date_t[]      >(cuda_device, params.num_tuples_per_kernel_launch),
+                cuda::memory::device::make_unique< compressed::discount_t[]       >(cuda_device, params.num_tuples_per_kernel_launch),
+                cuda::memory::device::make_unique< compressed::extended_price_t[] >(cuda_device, params.num_tuples_per_kernel_launch),
+                cuda::memory::device::make_unique< compressed::tax_t[]            >(cuda_device, params.num_tuples_per_kernel_launch),
+                cuda::memory::device::make_unique< compressed::quantity_t[]       >(cuda_device, params.num_tuples_per_kernel_launch),
+                cuda::memory::device::make_unique< bit_container_t[]              >(cuda_device, div_rounding_up(params.num_tuples_per_kernel_launch, return_flag_values_per_container)),
+                cuda::memory::device::make_unique< bit_container_t[]              >(cuda_device, div_rounding_up(params.num_tuples_per_kernel_launch, line_status_values_per_container)),
+                cuda::memory::device::make_unique< bit_container_t[]              >(cuda_device, div_rounding_up(params.num_tuples_per_kernel_launch, bits_per_container))
+            };
+            stream_input_buffer_sets.compressed.emplace_back(std::move(stream_input_buffer_set));
+        }
+        else {
+            auto stream_input_buffer_set = input_buffer_set<cuda::memory::device::unique_ptr, is_not_compressed>{
+                cuda::memory::device::make_unique< ship_date_t[]      >(cuda_device, params.num_tuples_per_kernel_launch),
+                cuda::memory::device::make_unique< discount_t[]       >(cuda_device, params.num_tuples_per_kernel_launch),
+                cuda::memory::device::make_unique< extended_price_t[] >(cuda_device, params.num_tuples_per_kernel_launch),
+                cuda::memory::device::make_unique< tax_t[]            >(cuda_device, params.num_tuples_per_kernel_launch),
+                cuda::memory::device::make_unique< quantity_t[]       >(cuda_device, params.num_tuples_per_kernel_launch),
+                cuda::memory::device::make_unique< return_flag_t[]    >(cuda_device, params.num_tuples_per_kernel_launch),
+                cuda::memory::device::make_unique< line_status_t[]    >(cuda_device, params.num_tuples_per_kernel_launch),
+            };
+            stream_input_buffer_sets.uncompressed.emplace_back(std::move(stream_input_buffer_set));
+        }
+    }
+}
+
 
 int main(int argc, char** argv) {
     make_sure_we_are_on_cpu_core_0();
@@ -973,77 +1036,35 @@ int main(int argc, char** argv) {
     // a few sub-allocations, which would take very little time (dozens of clock cycles overall) -
     // no system calls.
 
-    host_aggregates_t aggregates_on_host {
-        std::make_unique< sum_quantity_t[]         >(num_potential_groups),
-        std::make_unique< sum_base_price_t[]       >(num_potential_groups),
-        std::make_unique< sum_discounted_price_t[] >(num_potential_groups),
-        std::make_unique< sum_charge_t []          >(num_potential_groups),
-        std::make_unique< sum_discount_t[]         >(num_potential_groups),
-        std::make_unique< cardinality_t[]          >(num_potential_groups)
-    };
+    device_aggregates_t        aggregates_on_device;
+    host_aggregates_t          aggregates_on_host;
+    stream_input_buffer_sets   stream_input_buffer_sets;
 
-    /* Allocate memory on device */
-    
+
+    auto cuda_device = cuda::device::current::get();
+
+    std::vector<cuda::stream_t<>>  streams;
+    streams.reserve(params.num_gpu_streams);
+        // We'll be scheduling (most of) our work in a round-robin fashion on all of
+        // the streams, to prevent the GPU from idling.
+    for(int i = 0; i < params.num_gpu_streams; i++) {
+        auto stream = cuda_device.create_stream(cuda::stream::async);
+        streams.emplace_back(std::move(stream));
+    }
+
     // Note:
     // We are not timing the allocations here. In a real DBMS, actual CUDA allocations would
     // happen with the DBMS is brought up, and when a query is processed, it will only be
     // a few sub-allocations, which would take very little time (dozens of clock cycles overall) -
     // no CUDA API nor system calls. We _will_, however, time the initialization of the buffers.
+    allocate_non_input_resources(
+        cuda_device,
+        params,
+        cardinality,
+        aggregates_on_device,
+        aggregates_on_host,
+        stream_input_buffer_sets);
 
-    auto cuda_device = cuda::device::current::get();
-
-    device_aggregates_t aggregates_on_device {
-        cuda::memory::device::make_unique< sum_quantity_t[]         >(cuda_device, num_potential_groups),
-        cuda::memory::device::make_unique< sum_base_price_t[]       >(cuda_device, num_potential_groups),
-        cuda::memory::device::make_unique< sum_discounted_price_t[] >(cuda_device, num_potential_groups),
-        cuda::memory::device::make_unique< sum_charge_t []          >(cuda_device, num_potential_groups),
-        cuda::memory::device::make_unique< sum_discount_t[]         >(cuda_device, num_potential_groups),
-        cuda::memory::device::make_unique< cardinality_t[]          >(cuda_device, num_potential_groups)
-    };
-
-    stream_input_buffer_sets stream_input_buffer_sets;
-
-    std::vector<cuda::stream_t<>> streams;
-    if (params.apply_compression) {
-        stream_input_buffer_sets.compressed.reserve(params.num_gpu_streams);
-    } else {
-        stream_input_buffer_sets.uncompressed.reserve(params.num_gpu_streams);
-    }
-    streams.reserve(params.num_gpu_streams);
-        // We'll be scheduling (most of) our work in a round-robin fashion on all of
-        // the streams, to prevent the GPU from idling.
-
-    for (int i = 0; i < params.num_gpu_streams; ++i) {
-        if (params.apply_compression) {
-            auto stream_input_buffer_set = input_buffer_set<cuda::memory::device::unique_ptr, is_compressed>{
-                cuda::memory::device::make_unique< compressed::ship_date_t[]      >(cuda_device, params.num_tuples_per_kernel_launch),
-                cuda::memory::device::make_unique< compressed::discount_t[]       >(cuda_device, params.num_tuples_per_kernel_launch),
-                cuda::memory::device::make_unique< compressed::extended_price_t[] >(cuda_device, params.num_tuples_per_kernel_launch),
-                cuda::memory::device::make_unique< compressed::tax_t[]            >(cuda_device, params.num_tuples_per_kernel_launch),
-                cuda::memory::device::make_unique< compressed::quantity_t[]       >(cuda_device, params.num_tuples_per_kernel_launch),
-                cuda::memory::device::make_unique< bit_container_t[]              >(cuda_device, div_rounding_up(params.num_tuples_per_kernel_launch, return_flag_values_per_container)),
-                cuda::memory::device::make_unique< bit_container_t[]              >(cuda_device, div_rounding_up(params.num_tuples_per_kernel_launch, line_status_values_per_container)),
-                cuda::memory::device::make_unique< bit_container_t[]              >(cuda_device, div_rounding_up(params.num_tuples_per_kernel_launch, bits_per_container))
-            };
-            stream_input_buffer_sets.compressed.emplace_back(std::move(stream_input_buffer_set));
-        }
-        else {
-            auto stream_input_buffer_set = input_buffer_set<cuda::memory::device::unique_ptr, is_not_compressed>{
-                cuda::memory::device::make_unique< ship_date_t[]      >(cuda_device, params.num_tuples_per_kernel_launch),
-                cuda::memory::device::make_unique< discount_t[]       >(cuda_device, params.num_tuples_per_kernel_launch),
-                cuda::memory::device::make_unique< extended_price_t[] >(cuda_device, params.num_tuples_per_kernel_launch),
-                cuda::memory::device::make_unique< tax_t[]            >(cuda_device, params.num_tuples_per_kernel_launch),
-                cuda::memory::device::make_unique< quantity_t[]       >(cuda_device, params.num_tuples_per_kernel_launch),
-                cuda::memory::device::make_unique< return_flag_t[]    >(cuda_device, params.num_tuples_per_kernel_launch),
-                cuda::memory::device::make_unique< line_status_t[]    >(cuda_device, params.num_tuples_per_kernel_launch),
-            };
-            stream_input_buffer_sets.uncompressed.emplace_back(std::move(stream_input_buffer_set));
-        }
-        auto stream = cuda_device.create_stream(cuda::stream::async);
-        streams.emplace_back(std::move(stream));
-    }
-
-    // This only works for the overall time, not for anything else, so it's not a good idea:
     std::ofstream results_file;
     results_file.open("results.csv", std::ios::out);
 
