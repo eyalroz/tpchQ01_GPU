@@ -20,15 +20,21 @@
 #include "bit_operations.hpp"
 #include <stdio.h>
 
-namespace cuda {
+namespace kernels {
+namespace in_registers {
+namespace several_tables_per_warp {
+
+using cuda::warp_size;
 
 enum {
-    threads_per_block_for_in_registers_hash_table   = 256, // maybe go all the way up to 1024?
+    fixed_threads_per_block   = 256, // maybe go all the way up to 1024?
+    tables_per_warp           = warp_size / num_potential_groups,
+    active_lanes_per_warp     = num_potential_groups * tables_per_warp,
 };
 
 
 __global__
-void in_registers_ht_tpchQ01(
+void tpch_query_01(
     sum_quantity_t*          __restrict__ sum_quantity,
     sum_base_price_t*        __restrict__ sum_base_price,
     sum_discounted_price_t*  __restrict__ sum_discounted_price,
@@ -44,11 +50,6 @@ void in_registers_ht_tpchQ01(
     const line_status_t*     __restrict__ line_status,
     cardinality_t                         num_tuples)
 {
-    enum {
-        tables_per_warp       = warp_size / num_potential_groups,
-        active_lanes_per_warp = num_potential_groups * tables_per_warp,
-    };
-
     auto lane_index = threadIdx.x % warp_size;
     auto warp_index = threadIdx.x / warp_size;
 
@@ -121,7 +122,7 @@ void in_registers_ht_tpchQ01(
 }
 
  __global__
-void in_registers_ht_tpchQ01_compressed(
+void tpch_query_01_compressed(
     sum_quantity_t*                      __restrict__ sum_quantity,
     sum_base_price_t*                    __restrict__ sum_base_price,
     sum_discounted_price_t*              __restrict__ sum_discounted_price,
@@ -137,11 +138,6 @@ void in_registers_ht_tpchQ01_compressed(
     const bit_container_t*               __restrict__ line_status,
     cardinality_t                                     num_tuples)
  {
-    enum {
-        tables_per_warp       = warp_size / num_potential_groups,
-        active_lanes_per_warp = num_potential_groups * tables_per_warp,
-    };
-
     auto lane_index = threadIdx.x % warp_size;
     auto warp_index = threadIdx.x / warp_size;
 
@@ -214,7 +210,7 @@ void in_registers_ht_tpchQ01_compressed(
 }
 
  __global__
-void in_registers_ht_tpchQ01_filter_pushdown_compressed(
+void tpch_query_01_compressed_precomputed_filter(
     sum_quantity_t*                      __restrict__ sum_quantity,
     sum_base_price_t*                    __restrict__ sum_base_price,
     sum_discounted_price_t*              __restrict__ sum_discounted_price,
@@ -230,11 +226,6 @@ void in_registers_ht_tpchQ01_filter_pushdown_compressed(
     const bit_container_t*               __restrict__ line_status,
     cardinality_t                                     num_tuples)
  {
-    enum {
-        tables_per_warp       = warp_size / num_potential_groups,
-        active_lanes_per_warp = num_potential_groups * tables_per_warp,
-    };
-
     auto lane_index = threadIdx.x % warp_size;
     auto warp_index = threadIdx.x / warp_size;
 
@@ -306,4 +297,6 @@ void in_registers_ht_tpchQ01_filter_pushdown_compressed(
     atomicAdd( & record_count        [lane_group_index], single_group_record_count         );
 }
 
-} // namespace cuda
+} // namespace several_tables_per_warp
+} // namespace in_registers
+} // namespace kernels

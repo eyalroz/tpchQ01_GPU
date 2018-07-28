@@ -164,41 +164,41 @@ void print_results(const T& aggregates_on_host, cardinality_t cardinality) {
         << (double) total_passing / cardinality << "\n";
 }
 
-const std::unordered_map<string, cuda::device_function_t> kernels = {
-    { "local_mem",               cuda::in_local_mem_ht_tpchQ01            },
-    { "in_registers",            cuda::in_registers_ht_tpchQ01            },
-    { "in_registers_per_thread", cuda::in_registers_per_thread_ht_tpchQ01 },
-    { "shared_mem_per_thread",   cuda::shared_mem_per_thread_ht_tpchQ01<> },
-//  { "shared_mem",              cuda::shared_mem_ht_tpchQ01              },
-    { "global",                  cuda::global_ht_tpchQ01                  },
+const std::unordered_map<string, cuda::device_function_t> plain_kernels = {
+    { "local_mem",               kernels::local_mem::one_table_per_thread::tpch_query_01         },
+    { "in_registers",            kernels::in_registers::several_tables_per_warp::tpch_query_01   },
+    { "in_registers_per_thread", kernels::in_registers::one_table_per_thread::tpch_query_01      },
+    { "shared_mem_per_thread",   kernels::shared_mem::one_table_per_thread::tpch_query_01<>      },
+//  { "shared_mem",              kernels::shared_mem::several_tables_per_warp::tpch_query_01     },
+    { "global",                  kernels::global_mem::single_table::tpch_query_01                },
 };
 
 const std::unordered_map<string, cuda::device_function_t> kernels_compressed = {
-    { "local_mem",               cuda::in_local_mem_ht_tpchQ01_compressed            },
-    { "in_registers",            cuda::in_registers_ht_tpchQ01_compressed            },
-    { "in_registers_per_thread", cuda::in_registers_per_thread_ht_tpchQ01_compressed },
-    { "shared_mem_per_thread",   cuda::shared_mem_per_thread_ht_tpchQ01_compressed<> },
-//  { "shared_mem",              cuda::shared_mem_ht_tpchQ01_compressed              },
-    { "global",                  cuda::global_ht_tpchQ01_compressed                  },
+    { "local_mem",               kernels::local_mem::one_table_per_thread::tpch_query_01_compressed       },
+    { "in_registers",            kernels::in_registers::several_tables_per_warp::tpch_query_01_compressed },
+    { "in_registers_per_thread", kernels::in_registers::one_table_per_thread::tpch_query_01_compressed    },
+    { "shared_mem_per_thread",   kernels::shared_mem::one_table_per_thread::tpch_query_01_compressed<>    },
+//  { "shared_mem",              kernels::shared_mem::several_tables_per_warp::tpch_query_01_compressed   },
+    { "global",                  kernels::global_mem::single_table::tpch_query_01_compressed              },
 };
 
 const std::unordered_map<string, cuda::device_function_t> kernels_filter_pushdown = {
-    { "local_mem",               cuda::in_local_mem_ht_tpchQ01_filter_pushdown_compressed            },
-    { "in_registers",            cuda::in_registers_ht_tpchQ01_filter_pushdown_compressed            },
-    { "in_registers_per_thread", cuda::in_registers_per_thread_ht_tpchQ01_filter_pushdown_compressed },
-    { "global",                  cuda::global_ht_tpchQ01_filter_pushdown_compressed                  },
-//  { "shared_mem",              cuda::shared_mem_ht_tpchQ01_pushdown_compressed                     },
-    { "shared_mem_per_thread",   cuda::shared_mem_per_thread_ht_tpchQ01_pushdown_compressed<>        },
+    { "local_mem",               kernels::local_mem::one_table_per_thread::tpch_query_01_compressed_precomputed_filter       },
+    { "in_registers",            kernels::in_registers::several_tables_per_warp::tpch_query_01_compressed_precomputed_filter },
+    { "in_registers_per_thread", kernels::in_registers::one_table_per_thread::tpch_query_01_compressed_precomputed_filter    },
+    { "global",                  kernels::global_mem::single_table::tpch_query_01_compressed_precomputed_filter              },
+//  { "shared_mem",              kernels::shared_mem::several_tables_per_warp::tpch_query_01_compressed_precomputed_filter   },
+    { "shared_mem_per_thread",   kernels::shared_mem::one_table_per_thread::tpch_query_01_compressed_precomputed_filter<>    },
 };
 
 // Some kernel variants cannot support as many threads per block as the hardware allows generally,
 // and for these we use a fixed number for now
 const std::unordered_map<string, cuda::grid_block_dimension_t> fixed_threads_per_block = {
-    { "in_registers",          cuda::threads_per_block_for_in_registers_hash_table },
+    { "in_registers",           kernels::in_registers::several_tables_per_warp::fixed_threads_per_block },
 };
 
 const std::unordered_map<string, cuda::grid_block_dimension_t> max_threads_per_block = {
-    { "shared_mem_per_thread", cuda::max_threads_per_block_for_per_thread_shared_mem },
+    { "shared_mem_per_thread", kernels::shared_mem::one_table_per_thread::max_threads_per_block },
 };
 
 const std::unordered_map<string, unsigned> num_threads_to_handle_tuple = {
@@ -287,7 +287,7 @@ q1_params_t parse_command_line(int argc, char** argv)
                 }
             } else if (arg_name == "hash-table-placement") {
                 params.kernel_variant = arg_value;
-                if (kernels.find(params.kernel_variant) == kernels.end()) {
+                if (plain_kernels.find(params.kernel_variant) == plain_kernels.end()) {
                     cerr << "No kernel variant named \"" + params.kernel_variant + "\" is available" << endl;
                     exit(EXIT_FAILURE);
                 }
@@ -760,7 +760,7 @@ void execute_query_1_once(
                 num_tuples_for_this_launch);
         } else {
             auto& stream_input_buffer_set = stream_input_buffer_sets.uncompressed[stream_index];
-            auto kernel = kernels.at(params.kernel_variant);
+            auto kernel = plain_kernels.at(params.kernel_variant);
             stream.enqueue.kernel_launch(
                 kernel,
                 launch_config,
@@ -969,7 +969,6 @@ void allocate_non_input_resources(
         }
     }
 }
-
 
 int main(int argc, char** argv) {
     make_sure_we_are_on_cpu_core_0();

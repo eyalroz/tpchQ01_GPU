@@ -6,10 +6,14 @@
 #include "data_types.h"
 #include "bit_operations.hpp"
 
-namespace cuda {
+namespace kernels {
+namespace in_registers {
+namespace one_table_per_thread {
+
+using cuda::warp_size;
 
 __global__
-void in_registers_per_thread_ht_tpchQ01(
+void tpch_query_01(
     sum_quantity_t*          __restrict__ sum_quantity,
     sum_base_price_t*        __restrict__ sum_base_price,
     sum_discounted_price_t*  __restrict__ sum_discounted_price,
@@ -79,7 +83,7 @@ void in_registers_per_thread_ht_tpchQ01(
 }
 
  __global__
-void in_registers_per_thread_ht_tpchQ01_compressed(
+void tpch_query_01_compressed(
     sum_quantity_t*                      __restrict__ sum_quantity,
     sum_base_price_t*                    __restrict__ sum_base_price,
     sum_discounted_price_t*              __restrict__ sum_discounted_price,
@@ -148,7 +152,7 @@ void in_registers_per_thread_ht_tpchQ01_compressed(
 }
 
  __global__
-void in_registers_per_thread_ht_tpchQ01_filter_pushdown_compressed(
+void tpch_query_01_compressed_precomputed_filter(
     sum_quantity_t*                      __restrict__ sum_quantity,
     sum_base_price_t*                    __restrict__ sum_base_price,
     sum_discounted_price_t*              __restrict__ sum_discounted_price,
@@ -217,4 +221,6 @@ void in_registers_per_thread_ht_tpchQ01_filter_pushdown_compressed(
 
 }
 
-} // namespace cuda
+} // namespace one_table_per_thread
+} // namespace in_registers
+} // namespace kernels

@@ -6,25 +6,29 @@
 #include "data_types.h"
 #include "bit_operations.hpp"
 
-namespace cuda {
+namespace kernels {
+namespace shared_mem {
+namespace one_table_per_thread {
+
+using cuda::warp_size;
 
 enum {
     size_of_set_of_hash_tables =
         (sizeof(sum_quantity_t) + sizeof(sum_base_price_t) + sizeof(sum_discounted_price_t) +
         sizeof(sum_charge_t) + sizeof(sum_discount_t) + sizeof (cardinality_t)) * num_potential_groups,
     assumed_shared_memory_size = (48 * 1024),
-    non_full_warp_size_max_threads_per_block_for_per_thread_shared_mem =
+    non_full_warp_size_max_threads_per_block =
             assumed_shared_memory_size / size_of_set_of_hash_tables,
-    max_threads_per_block_for_per_thread_shared_mem =
-            non_full_warp_size_max_threads_per_block_for_per_thread_shared_mem -
-            non_full_warp_size_max_threads_per_block_for_per_thread_shared_mem % warp_size,
+    max_threads_per_block =
+            non_full_warp_size_max_threads_per_block -
+            non_full_warp_size_max_threads_per_block % warp_size,
 };
 
-template <unsigned MaxNumThreadsPerBlock = max_threads_per_block_for_per_thread_shared_mem>
+template <unsigned MaxNumThreadsPerBlock = max_threads_per_block>
     // this must be a nice number w.r.t. the number of shared memory banks, and not too high, otherwise
     // NVCC will complain about too much shared memory use!
 __global__
-void shared_mem_per_thread_ht_tpchQ01(
+void tpch_query_01(
     sum_quantity_t*          __restrict__ sum_quantity,
     sum_base_price_t*        __restrict__ sum_base_price,
     sum_discounted_price_t*  __restrict__ sum_discounted_price,
@@ -117,11 +121,11 @@ void shared_mem_per_thread_ht_tpchQ01(
     }
 }
 
-template <unsigned MaxNumThreadsPerBlock = max_threads_per_block_for_per_thread_shared_mem>
+template <unsigned MaxNumThreadsPerBlock = max_threads_per_block>
     // this must be a nice number w.r.t. the number of shared memory banks, and not too high, otherwise
     // NVCC will complain about too much shared memory use!
 __global__
-void shared_mem_per_thread_ht_tpchQ01_compressed(
+void tpch_query_01_compressed(
     sum_quantity_t*                      __restrict__ sum_quantity,
     sum_base_price_t*                    __restrict__ sum_base_price,
     sum_discounted_price_t*              __restrict__ sum_discounted_price,
@@ -213,11 +217,11 @@ void shared_mem_per_thread_ht_tpchQ01_compressed(
 
 }
 
-template <unsigned MaxNumThreadsPerBlock = max_threads_per_block_for_per_thread_shared_mem>
+template <unsigned MaxNumThreadsPerBlock = max_threads_per_block>
     // this must be a nice number w.r.t. the number of shared memory banks, and not too high, otherwise
     // NVCC will complain about too much shared memory use!
 __global__
-void shared_mem_per_thread_ht_tpchQ01_pushdown_compressed(
+void tpch_query_01_compressed_precomputed_filter (
     sum_quantity_t*                      __restrict__ sum_quantity,
     sum_base_price_t*                    __restrict__ sum_base_price,
     sum_discounted_price_t*              __restrict__ sum_discounted_price,
@@ -310,5 +314,6 @@ void shared_mem_per_thread_ht_tpchQ01_pushdown_compressed(
     }
 }
 
-
-} // namespace cuda
+} // namespace one_table_per_thread
+} // namespace shared_mem
+} // namespace kernels

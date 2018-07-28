@@ -7,9 +7,15 @@
 #include "data_types.h"
 #include "bit_operations.hpp"
 
-namespace cuda {
+namespace kernels {
+namespace global_mem {
+namespace single_table {
+
+using cuda::warp_size;
+
+
 __global__
-void global_ht_tpchQ01(
+void tpch_query_01(
     sum_quantity_t*          __restrict__ sum_quantity,
     sum_base_price_t*        __restrict__ sum_base_price,
     sum_discounted_price_t*  __restrict__ sum_discounted_price,
@@ -52,7 +58,7 @@ void global_ht_tpchQ01(
 }
 
 __global__
-void global_ht_tpchQ01_compressed(
+void tpch_query_01_compressed(
     sum_quantity_t*                      __restrict__ sum_quantity,
     sum_base_price_t*                    __restrict__ sum_base_price,
     sum_discounted_price_t*              __restrict__ sum_discounted_price,
@@ -93,7 +99,7 @@ void global_ht_tpchQ01_compressed(
     }
 }
 __global__
-void global_ht_tpchQ01_filter_pushdown_compressed (
+void tpch_query_01_compressed_precomputed_filter (
     sum_quantity_t*                      __restrict__ sum_quantity,
     sum_base_price_t*                    __restrict__ sum_base_price,
     sum_discounted_price_t*              __restrict__ sum_discounted_price,
@@ -135,4 +141,6 @@ void global_ht_tpchQ01_filter_pushdown_compressed (
     }
 }
 
-} // namespace cuda
+} // namespace single_table
+} // namespace global_mem
+} // namespace kernels
