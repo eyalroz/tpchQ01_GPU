@@ -8,7 +8,7 @@
 #include "kernels/ht_in_registers_per_thread.cuh"
 #include "kernels/ht_in_local_mem.cuh"
 #include "kernels/ht_in_shared_mem_per_thread.cuh"
-// #include "kernels/ht_per_block_in_shared_mem.cuh"
+#include "kernels/ht_in_shared_mem_per_block.cuh"
 #include "expl_comp_strat/tpch_kit.hpp"
 #include "expl_comp_strat/common.hpp"
 #include "cpu/common.hpp"
@@ -151,7 +151,7 @@ const std::unordered_map<string, cuda::device_function_t> plain_kernels = {
     { "in_registers",            kernels::in_registers::several_tables_per_warp::tpch_query_01   },
     { "in_registers_per_thread", kernels::in_registers::one_table_per_thread::tpch_query_01      },
     { "shared_mem_per_thread",   kernels::shared_mem::one_table_per_thread::tpch_query_01<>      },
-//  { "shared_mem",              kernels::shared_mem::several_tables_per_warp::tpch_query_01     },
+    { "shared_mem_per_block",    kernels::shared_mem::one_table_per_block::tpch_query_01         },
     { "global",                  kernels::global_mem::single_table::tpch_query_01                },
 };
 
@@ -160,7 +160,7 @@ const std::unordered_map<string, cuda::device_function_t> kernels_compressed = {
     { "in_registers",            kernels::in_registers::several_tables_per_warp::tpch_query_01_compressed },
     { "in_registers_per_thread", kernels::in_registers::one_table_per_thread::tpch_query_01_compressed    },
     { "shared_mem_per_thread",   kernels::shared_mem::one_table_per_thread::tpch_query_01_compressed<>    },
-//  { "shared_mem",              kernels::shared_mem::several_tables_per_warp::tpch_query_01_compressed   },
+    { "shared_mem_per_block",    kernels::shared_mem::one_table_per_block::tpch_query_01_compressed       },
     { "global",                  kernels::global_mem::single_table::tpch_query_01_compressed              },
 };
 
@@ -169,7 +169,7 @@ const std::unordered_map<string, cuda::device_function_t> kernels_filter_pushdow
     { "in_registers",            kernels::in_registers::several_tables_per_warp::tpch_query_01_compressed_precomputed_filter },
     { "in_registers_per_thread", kernels::in_registers::one_table_per_thread::tpch_query_01_compressed_precomputed_filter    },
     { "global",                  kernels::global_mem::single_table::tpch_query_01_compressed_precomputed_filter              },
-//  { "shared_mem",              kernels::shared_mem::several_tables_per_warp::tpch_query_01_compressed_precomputed_filter   },
+    { "shared_mem_per_block",    kernels::shared_mem::one_table_per_block::tpch_query_01_compressed_precomputed_filter       },
     { "shared_mem_per_thread",   kernels::shared_mem::one_table_per_thread::tpch_query_01_compressed_precomputed_filter<>    },
 };
 
@@ -220,7 +220,7 @@ struct q1_params_t {
 
     // Command-line-settable parameters
 
-	cuda::device::id_t cuda_device_id    { cuda::device::default_device_id };
+    cuda::device::id_t cuda_device_id    { cuda::device::default_device_id };
     double scale_factor                  { defaults::scale_factor };
     std::string kernel_variant           { defaults::kernel_variant };
     bool should_print_results            { defaults::should_print_results };
