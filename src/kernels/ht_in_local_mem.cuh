@@ -1,6 +1,6 @@
 #pragma once
 
-#include "util/preprocessor_shorthands.cuh"
+#include "util/preprocessor_shorthands.h"
 #include "util/atomics.cuh"
 #include "constants.hpp"
 #include "data_types.h"

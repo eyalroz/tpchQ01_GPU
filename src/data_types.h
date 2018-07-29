@@ -1,18 +1,12 @@
 #pragma once
 
+#include "util/preprocessor_shorthands.h"
+
 #include <cuda/api_wrappers.h>
 
 #include <cstdint>
 #include <cstddef>
 #include <exception>
-
-#ifdef __CUDACC__
-#define __fhd__  __forceinline__ __host__ __device__
-#define __fd__   __forceinline__ __device__
-#else
-#define __fhd__ inline
-#define __fd__  inline
-#endif
 
 using std::size_t;
 
@@ -49,12 +43,12 @@ static_assert(std::is_same<bit_container_t,uint32_t>{}, "Expecting the bit conta
 /**
  * Applies a DICT(1 bit) encoding scheme to line status values
  */
-__fhd__ uint8_t encode_line_status(char status)
+__fhd__ uint8_t encode_line_status(line_status_t line_status)
 {
 #ifdef NDEBUG
-	return (status == 'F') ? 0 : 1;
+	return (line_status == 'F') ? 0 : 1;
 #else
-	switch(status) {
+	switch(line_status) {
 	case 'F': return 0;
 	case 'O': return 1;
 	default:  return 0xFF;
@@ -65,12 +59,12 @@ __fhd__ uint8_t encode_line_status(char status)
 /**
  * Applies a DICT(2 bit) encoding scheme to return flag values
  */
-__fhd__ uint8_t encode_return_flag(char flag)
+__fhd__ uint8_t encode_return_flag(return_flag_t return_flag)
 {
 #ifdef NDEBUG
-    return ((flag == 'R') << 1) + (flag == 'N');
+    return ((return_flag == 'R') << 1) + (return_flag == 'N');
 #else
-	switch(flag) {
+	switch(return_flag) {
 	case 'A' : return 0b00;
 	case 'N' : return 0b01;
 	case 'R' : return 0b10;
@@ -83,7 +77,7 @@ __fhd__ uint8_t encode_return_flag(char flag)
  * Decodes using a DICT(1 bit) encoding scheme;
  * arbitrary output for inputs about 0x1
  */
-__fhd__ char decode_line_status(uint8_t encoded_status)
+__fhd__ line_status_t decode_line_status(uint8_t encoded_status)
 {
 #ifdef NDEBUG
 	return encoded_status == 0 ? 'F' : 'O';
@@ -101,7 +95,7 @@ __fhd__ char decode_line_status(uint8_t encoded_status)
  * the dictionary actually only has 3 values;
  * arbitrary output for inputs of 0x11 and above
  */
-__fhd__ uint8_t decode_return_flag(char encoded_flag)
+__fhd__ return_flag_t decode_return_flag(char encoded_flag)
 {
 #ifdef NDEBUG
     return (encoded_flag == 0) ? 'A' : ((encoded_flag == 1) ? 'N' : 'R');

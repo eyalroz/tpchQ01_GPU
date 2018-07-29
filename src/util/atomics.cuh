@@ -2,7 +2,7 @@
 #ifndef ATOMICS_CUH_
 #define ATOMICS_CUH_
 
-#include "preprocessor_shorthands.cuh"
+#include "preprocessor_shorthands.h"
 #include <cuda_runtime_api.h>
 
 // Annoyingly, CUDA - upto and including version 9.2 - provides atomic
