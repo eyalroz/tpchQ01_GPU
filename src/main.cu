@@ -417,8 +417,7 @@ bool columns_are_cached(
 template <template <typename> class UniquePtr, bool Compressed>
 cardinality_t load_cached_columns(
     const q1_params_t&                         params,
-    input_buffer_set<UniquePtr, Compressed>&   buffer_set,
-    lineitem&                                  li)
+    input_buffer_set<UniquePtr, Compressed>&   buffer_set)
 {
     auto data_files_directory =
         filesystem::path(defaults::tpch_data_subdirectory) / std::to_string(params.scale_factor);
@@ -823,7 +822,7 @@ input_buffer_set<cuda::memory::host::unique_ptr, is_compressed> compress_columns
         cuda::memory::host::make_unique< compressed::quantity_t[]       >(cardinality),
         cuda::memory::host::make_unique< bit_container_t[] >(div_rounding_up(cardinality, return_flag_values_per_container)),
         cuda::memory::host::make_unique< bit_container_t[] >(div_rounding_up(cardinality, line_status_values_per_container)),
-        cuda::memory::host::make_unique< bit_container_t[] >(div_rounding_up(cardinality, bits_per_container))
+        nullptr // precomputed filter - we don't create this here.
     };
 
     cout << "Compressing column data... " << flush;
@@ -920,6 +919,19 @@ void move_buffers_into_lineitem_object(
     );
 }
 
+void set_lineitem_cardinalities(
+    lineitem&                                                 li,
+    cardinality_t                                             cardinality)
+{
+    li.l_shipdate.cardinality = cardinality;
+    li.l_discount.cardinality = cardinality;
+    li.l_tax.cardinality = cardinality;
+    li.l_quantity.cardinality = cardinality;
+    li.l_extendedprice.cardinality = cardinality;
+    li.l_returnflag.cardinality = cardinality;
+    li.l_linestatus.cardinality = cardinality;
+}
+
 void allocate_non_input_resources(
     q1_params_t                     params,
     cuda::device_t<>                cuda_device,
@@ -1009,17 +1021,18 @@ int main(int argc, char** argv) {
 
     if (columns_to_process_are_cached) {
         if (params.apply_compression) {
-            cardinality = load_cached_columns(params, compressed, li);
+            cardinality = load_cached_columns(params, compressed);
+            set_lineitem_cardinalities(li, cardinality);
         }
         else {
-            cardinality = load_cached_columns(params, uncompressed_outside_li, li);
+            cardinality = load_cached_columns(params, uncompressed_outside_li);
             move_buffers_into_lineitem_object(uncompressed_outside_li, li, cardinality);
             uncompressed = get_buffers_inside(li);
         }
     }
     else {
         if (columns_are_cached(params, is_not_compressed)) {
-            cardinality = load_cached_columns(params, uncompressed_outside_li, li);
+            cardinality = load_cached_columns(params, uncompressed_outside_li);
             move_buffers_into_lineitem_object(uncompressed_outside_li, li, cardinality);
             uncompressed = get_buffers_inside(li);
         }
@@ -1035,6 +1048,12 @@ int main(int argc, char** argv) {
             compressed = compress_columns(uncompressed, cardinality);
             write_columns_to_cache(params, compressed, cardinality);
         }
+    }
+
+    if (params.use_filter_pushdown) {
+        assert(params.apply_compression);
+        compressed.precomputed_filter =
+            cuda::memory::host::make_unique< bit_container_t[] >(div_rounding_up(cardinality, bits_per_container));
     }
 
     cpu_coprocessor = (params.use_coprocessing or params.use_filter_pushdown) ?  new CoProc(li, true) : nullptr;
