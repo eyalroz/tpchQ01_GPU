@@ -72,25 +72,6 @@ struct input_buffer_set<Ptr, is_not_compressed> {
 };
 
 
-void print_help(int argc, char** argv) {
-    fprintf(stderr, "Unrecognized command line option.\n");
-    fprintf(stderr, "Usage: %s [args]\n", argv[0]);
-    fprintf(stderr, "   --device=[default:%u] (number, e.g. 1)\n", cuda::device::default_device_id);
-    fprintf(stderr, "   --apply-compression\n");
-    fprintf(stderr, "   --print-results\n");
-    fprintf(stderr, "   --use-filter-pushdown\n");
-    fprintf(stderr, "   --use-coprocessing\n");
-    fprintf(stderr, "   --hash-table-placement=[default:in_registers_per_thread]\n"
-                    "     (one of: in_registers, in_registers_per_thread, local_mem, shared_mem_per_thread, global))\n");
-    fprintf(stderr, "   --runs=[default:%u] (number, e.g. 1 - 100)\n", (unsigned) defaults::num_query_execution_runs);
-    fprintf(stderr, "   --sf=[default:%f] (number, e.g. 0.01 - 100)\n", defaults::scale_factor);
-    fprintf(stderr, "   --cpu-fraction=[default:%f] (number, e.g. 0.5 - 100)\n", defaults::cpu_coprocessing_fraction);
-    fprintf(stderr, "   --streams=[default:%u] (number, e.g. 1 - 64)\n", defaults::num_gpu_streams);
-    fprintf(stderr, "   --threads-per-block=[default:%u] (number, e.g. 32 - 1024)\n", defaults::num_threads_per_block);
-    fprintf(stderr, "   --tuples_per_thread=[default:%u] (number, e.g. 1 - 1048576)\n", defaults::num_tuples_per_thread);
-    fprintf(stderr, "   --tuples-per-kernel-launch=[default:%u] (number, e.g. 64 - 4194304)\n", defaults::num_tuples_per_kernel_launch);
-}
-
 template <typename T>
 void print_results(const T& aggregates_on_host, cardinality_t cardinality) {
     cout << "+---------------------------------------------------- Results ------------------------------------------------------+\n";
@@ -210,6 +191,30 @@ const std::unordered_map<string, unsigned> num_threads_to_handle_tuple = {
 //  { "shared_mem",              1? },
     { "global",                  1  },
 };
+
+void print_help(int argc, char** argv) {
+    fprintf(stderr, "Unrecognized command line option.\n");
+    fprintf(stderr, "Usage: %s [args]\n", argv[0]);
+    fprintf(stderr, "   --device=[default:%u] (number, e.g. 1)\n", cuda::device::default_device_id);
+    fprintf(stderr, "   --apply-compression\n");
+    fprintf(stderr, "   --print-results\n");
+    fprintf(stderr, "   --use-filter-pushdown\n");
+    fprintf(stderr, "   --use-coprocessing\n");
+    fprintf(stderr, "   --hash-table-placement=[default:in_registers_per_thread]\n"
+                    "     (one of: ");
+    int remaining = plain_kernels.size();
+    for (auto p : plain_kernels) {
+        fprintf(stderr, "%s%s", p.first.c_str(), (--remaining == 0 ? ")\n" : ", "));
+    }
+    fprintf(stderr, "   --runs=[default:%u] (number, e.g. 1 - 100)\n", (unsigned) defaults::num_query_execution_runs);
+    fprintf(stderr, "   --sf=[default:%f] (number, e.g. 0.01 - 100)\n", defaults::scale_factor);
+    fprintf(stderr, "   --cpu-fraction=[default:%f] (number, e.g. 0.5 - 100)\n", defaults::cpu_coprocessing_fraction);
+    fprintf(stderr, "   --streams=[default:%u] (number, e.g. 1 - 64)\n", defaults::num_gpu_streams);
+    fprintf(stderr, "   --threads-per-block=[default:%u] (number, e.g. 32 - 1024)\n", defaults::num_threads_per_block);
+    fprintf(stderr, "   --tuples_per_thread=[default:%u] (number, e.g. 1 - 1048576)\n", defaults::num_tuples_per_thread);
+    fprintf(stderr, "   --tuples-per-kernel-launch=[default:%u] (number, e.g. 64 - 4194304)\n", defaults::num_tuples_per_kernel_launch);
+}
+
 
 struct q1_params_t {
 
