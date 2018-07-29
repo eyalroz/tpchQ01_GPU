@@ -75,6 +75,7 @@ struct input_buffer_set<Ptr, is_not_compressed> {
 void print_help(int argc, char** argv) {
     fprintf(stderr, "Unrecognized command line option.\n");
     fprintf(stderr, "Usage: %s [args]\n", argv[0]);
+    fprintf(stderr, "   --device=[default:%u] (number, e.g. 1)\n", cuda::device::default_device_id);
     fprintf(stderr, "   --apply-compression\n");
     fprintf(stderr, "   --print-results\n");
     fprintf(stderr, "   --use-filter-pushdown\n");
@@ -214,6 +215,7 @@ struct q1_params_t {
 
     // Command-line-settable parameters
 
+	cuda::device::id_t cuda_device_id    { cuda::device::default_device_id };
     double scale_factor                  { defaults::scale_factor };
     std::string kernel_variant           { defaults::kernel_variant };
     bool should_print_results            { defaults::should_print_results };
@@ -264,7 +266,7 @@ q1_params_t parse_command_line(int argc, char** argv)
             exit(EXIT_FAILURE);
         }
         arg = arg.substr(2);
-        if (arg == "device") {
+        if (arg == "list-devices") {
             get_device_properties();
             exit(1);
         } else if (arg == "use-coprocessing") {
@@ -289,6 +291,12 @@ q1_params_t parse_command_line(int argc, char** argv)
                 params.kernel_variant = arg_value;
                 if (plain_kernels.find(params.kernel_variant) == plain_kernels.end()) {
                     cerr << "No kernel variant named \"" + params.kernel_variant + "\" is available" << endl;
+                    exit(EXIT_FAILURE);
+                }
+            } else if (arg_name == "device") {
+                params.cuda_device_id = std::stod(arg_value);
+                if ((params.cuda_device_id < 0) or (cuda::device::count() <= params.cuda_device_id)) {
+                    cerr << "Invalid device number " << params.cuda_device_id << endl;
                     exit(EXIT_FAILURE);
                 }
             } else if (arg_name == "streams") {
@@ -559,8 +567,8 @@ using host_aggregates_t = aggregates_set<plugged_unique_ptr>;
 using device_aggregates_t = aggregates_set<cuda::memory::device::unique_ptr>;
 
 void execute_query_1_once(
-    cuda::device_t<>                              cuda_device,
     const q1_params_t&              __restrict__  params,
+    cuda::device_t<>                              cuda_device,
     int                                           run_index,
     cardinality_t                                 cardinality,
     std::vector<cuda::stream_t<>>&  __restrict__  streams,
@@ -908,14 +916,13 @@ void move_buffers_into_lineitem_object(
 }
 
 void allocate_non_input_resources(
-    cuda::device_t<>                cuda_device,
     q1_params_t                     params,
+    cuda::device_t<>                cuda_device,
     cardinality_t                   cardinality,
     device_aggregates_t&            aggregates_on_device,
     host_aggregates_t&              aggregates_on_host,
     stream_input_buffer_sets&       stream_input_buffer_sets
 )
-
 {
     aggregates_on_host = {
         std::make_unique< sum_quantity_t[]         >(num_potential_groups),
@@ -1040,7 +1047,7 @@ int main(int argc, char** argv) {
     stream_input_buffer_sets   stream_input_buffer_sets;
 
 
-    auto cuda_device = cuda::device::current::get();
+    auto cuda_device = cuda::device::get(params.cuda_device_id);
 
     std::vector<cuda::stream_t<>>  streams;
     streams.reserve(params.num_gpu_streams);
@@ -1057,8 +1064,8 @@ int main(int argc, char** argv) {
     // a few sub-allocations, which would take very little time (dozens of clock cycles overall) -
     // no CUDA API nor system calls. We _will_, however, time the initialization of the buffers.
     allocate_non_input_resources(
-        cuda_device,
         params,
+        cuda_device,
         cardinality,
         aggregates_on_device,
         aggregates_on_host,
@@ -1080,7 +1087,7 @@ int main(int argc, char** argv) {
         cout << "Executing TPC-H Query 1, run " << run_index + 1 << " of " << params.num_query_execution_runs << "... " << flush;
         auto start = timer::now();
         execute_query_1_once(
-            cuda_device, params, run_index, cardinality, streams,
+            params, cuda_device, run_index, cardinality, streams,
             aggregates_on_host, aggregates_on_device, stream_input_buffer_sets,
             uncompressed, compressed);
 
