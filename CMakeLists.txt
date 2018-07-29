@@ -112,8 +112,8 @@ SET(SOURCE_FILES
         )
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "bin")
-cuda_add_executable(tpch_01 ${SOURCE_FILES})
-target_link_libraries(tpch_01 ${LIBS} ${NUMA_LIBRARY})
+cuda_add_executable(tpch_q1 ${SOURCE_FILES})
+target_link_libraries(tpch_q1 ${LIBS} ${NUMA_LIBRARY})
 
 ##########################
 ## Data table generation
@@ -195,6 +195,6 @@ add_custom_target(
 		echo "Consider generating the SF 10 and SF 100 tables by make\\'ing targets data_table_sf_10 and data_table_sf_100 respectively"
 	DEPENDS
 		data_table_sf_1 
-		tpch_01
+		tpch_q1
 	)
 

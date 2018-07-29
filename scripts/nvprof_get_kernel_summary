@@ -9,7 +9,7 @@
 # Calls - number of times a specific kernel or API call was invoked; different argument values count as invocations of the same kernel
 # Name  - Name of the kernel, API call or other activity. For CUDA kernels, the name is the full demangled signature
 
-binary_name="bin/tpch_01"
+binary_name="bin/tpch_q1"
 
 nvprof_output=$(nvprof \
 	--concurrent-kernels off \

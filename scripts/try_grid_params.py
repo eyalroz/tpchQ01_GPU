@@ -15,7 +15,7 @@ import sys
 import time
 import StringIO
 
-binary = "bin/tpch_01"
+binary = "bin/tpch_q1"
 results_dir = "results"
 
 tuples_per_thread = [32, 64, 128, 256, 512, 1024] # anything below 32 is probably kind of silly, and even 64 has not been optimal in any case

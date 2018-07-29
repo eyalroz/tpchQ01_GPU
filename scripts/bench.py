@@ -2,7 +2,7 @@
 
 import os
 
-binary = "bin/tpch_01"
+binary = "bin/tpch_q1"
 
 default_sf = 100
 default_options = "--apply-compression"
