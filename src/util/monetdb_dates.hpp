@@ -1,4 +1,8 @@
-
+/**
+ * @file monetdb_dates.hpp
+ *
+ * Utility definitions and functions for working with MonetDB-style date fields
+ **/
 
 /* phony zero values, used to get negative numbers from unsigned
  * sub-integers in rule */

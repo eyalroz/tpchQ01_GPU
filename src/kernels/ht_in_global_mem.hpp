@@ -1,11 +1,11 @@
 #pragma once
 
 #include "expl_comp_strat/common.hpp"
-#include "preprocessor_shorthands.cuh"
-#include "atomics.cuh"
+#include "util/preprocessor_shorthands.cuh"
+#include "util/atomics.cuh"
 #include "constants.hpp"
 #include "data_types.h"
-#include "bit_operations.hpp"
+#include "util/bit_operations.hpp"
 
 namespace kernels {
 namespace global_mem {

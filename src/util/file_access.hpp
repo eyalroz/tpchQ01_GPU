@@ -1,10 +1,6 @@
 #pragma once
 #ifndef FILE_ACCESS_HPP_
 #define FILE_ACCESS_HPP_
-#include "data_types.h"
-#include "constants.hpp"
-#include "bit_operations.hpp"
-#include "helper.hpp"
 
 #if __cplusplus >= 201703L
 #include <filesystem>
@@ -24,7 +20,7 @@ namespace filesystem = std::experimental::filesystem;
 template <typename T>
 void load_column_from_binary_file(
     T* __restrict__          buffer,
-    cardinality_t            count,
+    std::size_t              count,
     const filesystem::path&  directory,
     const std::string&       base_filename)
 {
@@ -45,7 +41,7 @@ void load_column_from_binary_file(
 template <typename T>
 void write_column_to_binary_file(
     const T* __restrict__   buffer,
-    cardinality_t           count,
+    std::size_t             count,
     const filesystem::path& directory,
     const std::string&      base_filename)
 {

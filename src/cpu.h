@@ -4,7 +4,7 @@
 struct lineitem;
 
 #include <string>
-#include "blockingconcurrentqueue.h"
+#include "util/blockingconcurrentqueue.h"
 
 struct CPUKernel;
 struct AggrHashTable;

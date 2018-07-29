@@ -1,8 +1,8 @@
-#include "helper.hpp"
-#include "extra_pointer_traits.hpp"
 #include "data_types.h"
+#include "util/helper.hpp"
+#include "util/extra_pointer_traits.hpp"
 #include "constants.hpp"
-#include "bit_operations.hpp"
+#include "util/bit_operations.hpp"
 #include "kernels/ht_in_global_mem.hpp"
 #include "kernels/ht_in_registers.cuh"
 #include "kernels/ht_in_registers_per_thread.cuh"
@@ -13,7 +13,7 @@
 #include "expl_comp_strat/common.hpp"
 #include "cpu/common.hpp"
 #include "cpu.h"
-#include "file_access.hpp"
+#include "util/file_access.hpp"
 
 #include <iostream>
 #include <cuda/api_wrappers.h>
