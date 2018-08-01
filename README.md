@@ -1,52 +1,52 @@
 # TPC-H Query 01 Optimized for GPU execution
-We hereby present the source code used to evaluate TPC-H Query 01 optimized for CPU-GPU co-processing. (Paper accepted to ADMS/VLDB 2018)
 
-#### TPC-H Query 01 Versions:
+This fork of the [original repository](https://github.com/diegomestre2/tpchQ01_GPU) is intended for continued work on the GPU-side code by myself ([Eyal](https://eyalroz.github.io)). I did not have the time to code all of the implementation variants I had wanted before the [ADMS 2018 paper](https://www.researchgate.net/publication/280626545) was due, plus I was unhappy with other aspects of the code, so I've continued a bit further.
 
-| Implementation Flavor | Split CPU-GPU Computation | Filter Pushdown | Hash table Placement | Compression | Time (sec) |
-| --------------------- | ------------------------- | --------------- | -------------------- | ----------- | ---------- |
-| Global full           |             -             |         -       |        Global        |      -      |   12.60    |
-| In-register full      |             -             |         -       |        Register      |      -      |   12.45    |
-| Local full            |             -             |         -       |        Local         |      -      |   12.40    |
-| Local fp small        |             -             |         √       |        Local         |      √      |    0.76    |
-| In-register fp small  |             -             |         √       |        Register      |      √      |    0.76    |
-| Global fp small       |             -             |         √       |        Global        |      √      |    0.76    |
-| Global small          |             -             |         -       |        Global        |      √      |    0.74    |
-| In-register small     |             -             |         -       |        Register      |      √      |    0.68    | 
-| Local small           |             -             |         -       |        Local         |      √      |    0.57    | 
-| Global sc small       |             √             |         -       |        Global        |      √      |    0.51    |
-| In-register sc small  |             √             |         -       |        Register      |      √      |    0.43    | 
-| Local sc small        |             √             |         -       |        Local         |      √      |    0.38    | 
-| SharedMemory sc small |             √             |         -       |        Shared        |      √      |    0.37    |
+This repository should be a stand-in for the forked one, with the main differences being:
 
+* More distinct implementations.
+* Faster execution on compressed data (via caching; so the second call and onwards).
+* Support for choosing one of several devices on your system.
+* Slightly more structuring of the code in `main.cu`
+* Better separation between general-purpose utility code and code specific to our work.
+* Other stuff - [resolved](https://github.com/eyalroz/tpch_q1_on_gpu/issues?q=is%3Aissue+is%3Aclosed) and [unresolved](https://github.com/eyalroz/tpch_q1_on_gpu/issues).
+
+#### TPC-H Query 01 execution times:
+
+(to be filled in; for now, use the table in the published [paper[((https://www.researchgate.net/publication/280626545).)
 
 ## Prerequisites
 
-- CUDA v9.0 or later is recommended.
+- CUDA v9.0 or later is recommended; CUDA v8.0 will _probably_ work, but has not been tested.
 - A C++14-capable compiler compatible with your version of CUDA; only GCC has been tested.
 - [CMake](http://www.cmake.org/) v3.1 or later
 - A Unix-like environment for the (simple) shell scripts; without it, you may need to perform a few tasks manually
-- The [cuda-api-wrappers](https://github.com/eyalroz/cuda-api-wrappers) library; it can be obtained 
+- The [cuda-api-wrappers](https://github.com/eyalroz/cuda-api-wrappers) library.
 
-## Building
+## Building the Q1 benchmark binary
 
-Assuming you've cloned into `/path/to/tpchQ1`:
+Assuming you've cloned into `/path/to/tpch_q1_gpu`:
 
 - Configure the build and generate build files using `cmake /path/to/tpchQ1`
 - Build using either your default make'ing tool or with `cmake --build /path/to/tpchQ1`; this will also generate input data for Scale Factor 1 (SF 1)
-- Optionally: Generate data for more scale factors - SF 10 and SF 100 - using `make -C /path/to/tpchQ1 data_table_sf10` or `make -C /path/to/tpchQ1 data_table_sf100`.
 
-## Running and generating data for other scale factors
+## TPC-H benchmark data
 
-- When building, the binary `tpch_01`  is generated; 
-- Invoke `bin/tpch_01` in the directory where you've performed the build. That directory should have a `tpch/` subdirectory with  subdir for every scale factor with generated data.
-- You can use `scripts/genlineitem.sh` to manually generate a table for arbitrary scale factors, but you must place it under your build dir, under `tpch/123.000000` (for generated scale factor 123). Non-integral scale factors should work as well.
+The binary uses the `LINEITEM` table from the TPC-H benchmark data set. It is expected to reside in a subdirectory of where you run your binary; thus if we're in `/foo/bar` and call `bin/tpch_q1` (with scale factor 123), a `lineitem.tbl`files must reside in `foo/bar/tpch_data/123.000000`. Alternatively, if the binary has already cached the data after loading it before, `.bin` files will have been created in the same directory, e.g. `foo/bar/tpch_data/123.000000/shipdate.bin` and/or `foo/bar/tpch_data/123.000000/compressed_shipdate.bin` for speedier reading. In this case, the binary will be willing to ignore a missing tpch.
+
+### Generating the data 
+
+- When building, the data for TPC-H Scale Factor 1 (SF 1) is generated as one of the default targets.
+- You can use the build mechanism to generate data for two more scale factors - SF 10 and SF 100 - using `make -C /path/to/tpchQ1 data_table_sf_10` or `make -C /path/to/tpchQ1 data_table_sf_100`.
+- For arbitrary scale factors, invoke the `scripts/genlineitem.sh` script.
+
+
 
 ### `tpch_01` command-line options
 
 | Switch                  | Value range                                                          | Default value | Meaning                                                                                                                                                                                                |
 |-------------------------|----------------------------------------------------------------------|---------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| --apply-compression     | N/A                                                                  | (off)        | Use the compression schemes described on the Wiki, to reduce the amount of data for transmission over PCI/e                                                                                            |
+| --device                | 0 ... number of CUDA device-1                                        | 0             | Use the CUDA device with the specified index.                                                                                            | --apply-compression     | N/A                                                                  | (off)        | Use the compression schemes described on the Wiki, to reduce the amount of data for transmission over PCI/e                                                                                            |
 | --print-results         | N/A                                                                  | (off)         | Print the computed aggregates to std::cout after every run. Useful for debugging result stability issues.                                                                                              |
 | --use-filter-pushdown   | N/A                                                                  | (off)         | Have the CPU check the TPC-H Q1 `WHERE` clause condition, passing only that result bit vector to the GPU. It's debatable whether this is actually a "push down"  in the traditional sense of the term. |
 |  --use-coprocessing     | N/A                                                                  | (off)         | Schedule some of the work to be done on the CPU and some on the GPU                                                                                                                                    |
@@ -57,13 +57,6 @@ Assuming you've cloned into `/path/to/tpchQ1`:
 | --tuples-per-thread=H   | Positive integral number, preferably high                            | 1024          | The number of tuples each thread processes individually before merging results with other threads                                                                                                      |
 | --tuples-per-kernel=    | Positive integral number, preferably a multiple of threads-per-block | 1024          | Every how many input tuples is a new kernel launched?                                                                                                                                                  |
 
-
-## Important Dates
-
-- Paper Submission: Friday, 8 June, 2018 (Extended to 11 June, 2018)
-- Notification of Acceptance: Friday, 29 June, 2018
-- Camera-ready Submission: Friday, 20 July, 2018
-- Workshop Date: Monday, 27 August, 2018
 
 
 ## What is TPC-H Query 1?
