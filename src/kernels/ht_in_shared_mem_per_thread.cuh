@@ -16,7 +16,7 @@ enum {
     size_of_set_of_hash_tables =
         (sizeof(sum_quantity_t) + sizeof(sum_base_price_t) + sizeof(sum_discounted_price_t) +
         sizeof(sum_charge_t) + sizeof(sum_discount_t) + sizeof (cardinality_t)) * num_potential_groups,
-    assumed_shared_memory_size = (48 * 1024),
+    assumed_shared_memory_size = (64 * 1024), // Note: This will fail on Kepler and older GPUs
     non_full_warp_size_max_threads_per_block =
             assumed_shared_memory_size / size_of_set_of_hash_tables,
     max_threads_per_block =
