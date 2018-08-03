@@ -64,7 +64,7 @@ default_placement = 'local_mem'
 default_num_runs = 5 
 
 # This next line is pretty fragile; if the binary changes even slightly, it won't work
-cores_per_gpu = int((subprocess.check_output(['bash', '-c', "%s --device | grep 'Number of SM' | head -1 | cut -c18-" % (binary)])).rstrip())
+cores_per_gpu = int((subprocess.check_output(['bash', '-c', "%s --list-devices | grep 'Number of SM' | head -1 | cut -c18-" % (binary)])).rstrip())
 min_keep_busy_factor = 2
 hostname = (socket.gethostname())
 now = datetime.datetime.now()
