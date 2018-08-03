@@ -3,6 +3,7 @@ project(adms)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules")
 set(CMAKE_VERBOSE_MAKEFILE OFF)
 set(DATA_FILES_DIR "tpch_data")
+include(ExternalProject)
 
 # ----------------------------------
 # Project name, version & build type
@@ -41,14 +42,33 @@ find_package(Threads)
 find_package(Numa REQUIRED)
 include_directories(${NUMA_INCLUDE_DIR})
 
+ExternalProject_Add(cuda-api-wrappers_project  # Name for custom target
+#	PREFIX cuda-api-wrappers # Root dir for entire project
+#  [TMP_DIR dir]               # Directory to store temporary files
+#  [STAMP_DIR dir]             # Directory to store step timestamps
+# #--Download step--------------
+	GIT_REPOSITORY git@github.com:eyalroz/cuda-api-wrappers.git        # URL of git repo
+#	GIT_CONFIG "advice.detachedHead=false"
+	GIT_TAG 7e48712af95939361bf04e4f4718688795a319f9               # Git branch name, commit id or tag
+#  [TIMEOUT seconds]           # Time allowed for file download operations
+# #--Update/Patch step----------
+	UPDATE_COMMAND ""     # Source work-tree update command
+# #--Configure step-------------
+	SOURCE_DIR cuda-api-wrappers            # Source dir to be used for build
+#	CMAKE_CACHE_ARGS "-DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_BINARY_DIR}" # Initial cache arguments, of the form -Dvar:string=on
+# #--Build step-----------------
+#	BINARY_DIR "caw-build"            # Specify build dir location
+	BUILD_IN_SOURCE 1         # Use source dir for build dir
+# #--Install step---------------
+#	INSTALL_DIR "${CMAKE_BINARY_DIR}" # Installation prefix
+	INSTALL_COMMAND "" # Command to drive install after build
+  )
+include_directories(cuda-api-wrappers/src)
+link_directories(cuda-api-wrappers/lib)
 
-find_package(CUDAAPIWrappers REQUIRED)
-include_directories(${CUDA_API_WRAPPERS_INCLUDE_DIRS})
-# but what about the library search path?
 
-link_libraries(${CUDA_API_WRAPPERS_LIBS} stdc++fs)
+link_libraries(stdc++fs)
 
-#include_directories(SYSTEM ../)
 include_directories("src")
 include_directories(".") # for including <cpu/whatever> from within src
 
@@ -113,7 +133,8 @@ SET(SOURCE_FILES
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "bin")
 cuda_add_executable(tpch_q1 ${SOURCE_FILES})
-target_link_libraries(tpch_q1 ${LIBS} ${NUMA_LIBRARY})
+add_dependencies(tpch_q1 cuda-api-wrappers_project)
+target_link_libraries(tpch_q1 ${LIBS} ${NUMA_LIBRARY} cuda-api-wrappers)
 
 ##########################
 ## Data table generation
