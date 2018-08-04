@@ -3,7 +3,7 @@
 #include "util/extra_pointer_traits.hpp"
 #include "constants.hpp"
 #include "util/bit_operations.hpp"
-#include "kernels/ht_in_global_mem.hpp"
+#include "kernels/ht_in_global_mem.cuh"
 #include "kernels/ht_in_registers.cuh"
 #include "kernels/ht_in_registers_per_thread.cuh"
 #include "kernels/ht_in_local_mem.cuh"

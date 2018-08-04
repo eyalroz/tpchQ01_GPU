@@ -22,7 +22,7 @@ void tpch_query_01(
     sum_charge_t*            __restrict__ sum_charge,
     sum_discount_t*          __restrict__ sum_discount,
     cardinality_t*           __restrict__ record_count,
-    const ship_date_t*       __restrict__ shipdate,
+    const ship_date_t*       __restrict__ ship_date,
     const discount_t*        __restrict__ discount,
     const extended_price_t*  __restrict__ extended_price,
     const tax_t*             __restrict__ tax,
@@ -31,9 +31,9 @@ void tpch_query_01(
     const line_status_t*     __restrict__ line_status,
     cardinality_t                         num_tuples)
 {
-    cardinality_t stride = (blockDim.x * gridDim.x); //Grid-Stride
-    for(cardinality_t i = (blockIdx.x * blockDim.x + threadIdx.x); i < num_tuples; i += stride) {
-        if (shipdate[i] <= threshold_ship_date) {
+    cardinality_t input_stride = (blockDim.x * gridDim.x); //Grid-Stride
+    for(cardinality_t i = (blockIdx.x * blockDim.x + threadIdx.x); i < num_tuples; i += input_stride) {
+        if (ship_date[i] <= threshold_ship_date) {
             auto line_quantity         = quantity[i];
             auto line_discount         = discount[i];
             auto line_price            = extended_price[i];
@@ -65,7 +65,7 @@ void tpch_query_01_compressed(
     sum_charge_t*                        __restrict__ sum_charge,
     sum_discount_t*                      __restrict__ sum_discount,
     cardinality_t*                       __restrict__ record_count,
-    const compressed::ship_date_t*       __restrict__ shipdate,
+    const compressed::ship_date_t*       __restrict__ ship_date,
     const compressed::discount_t*        __restrict__ discount,
     const compressed::extended_price_t*  __restrict__ extended_price,
     const compressed::tax_t*             __restrict__ tax,
@@ -74,9 +74,9 @@ void tpch_query_01_compressed(
     const bit_container_t*               __restrict__ line_status,
     cardinality_t                                     num_tuples)
 {
-    cardinality_t stride = (blockDim.x * gridDim.x); //Grid-Stride
-    for(cardinality_t i = (blockIdx.x * blockDim.x + threadIdx.x); i <num_tuples; i += stride) {
-        if (shipdate[i] <= compressed_threshold_ship_date) {
+    cardinality_t input_stride = (blockDim.x * gridDim.x); //Grid-Stride
+    for(cardinality_t i = (blockIdx.x * blockDim.x + threadIdx.x); i <num_tuples; i += input_stride) {
+        if (ship_date[i] <= compressed_threshold_ship_date) {
             auto line_quantity         = quantity[i];
             auto line_discount         = discount[i];
             auto line_price            = extended_price[i];
@@ -115,8 +115,8 @@ void tpch_query_01_compressed_precomputed_filter (
     const bit_container_t*               __restrict__ line_status,
     cardinality_t                                     num_tuples)
 {
-    cardinality_t stride = (blockDim.x * gridDim.x); //Grid-Stride
-    for(cardinality_t i = (blockIdx.x * blockDim.x + threadIdx.x); i < num_tuples; i += stride) {
+    cardinality_t input_stride = (blockDim.x * gridDim.x); //Grid-Stride
+    for(cardinality_t i = (blockIdx.x * blockDim.x + threadIdx.x); i < num_tuples; i += input_stride) {
         auto passes_filter = get_bit(precomputed_filter, i);
     	if (passes_filter) {
             auto line_quantity         = quantity[i];
