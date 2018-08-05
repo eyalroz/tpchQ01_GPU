@@ -183,15 +183,6 @@ const std::unordered_map<string, cuda::grid_block_dimension_t> max_threads_per_b
     { "shared_mem_per_thread", kernels::shared_mem::one_table_per_thread::max_threads_per_block },
 };
 
-const std::unordered_map<string, unsigned> num_threads_to_handle_tuple = {
-    { "local_mem",               1  },
-    { "in_registers",            div_rounding_up(warp_size, warp_size / num_potential_groups)  },
-    { "in_registers_per_thread", 1  },
-    { "shared_mem_per_thread",   1  },
-//  { "shared_mem",              1? },
-    { "global",                  1  },
-};
-
 void print_help(int argc, char** argv) {
     fprintf(stderr, "Unrecognized command line option.\n");
     fprintf(stderr, "Usage: %s [args]\n", argv[0]);
