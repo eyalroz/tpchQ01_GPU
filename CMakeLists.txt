@@ -37,7 +37,10 @@ set(LIBS
 
 ### project dependencies
 
-find_package(Threads)
+find_package(Threads REQUIRED)
+
+find_package(Boost 1.45.0 COMPONENTS program_options REQUIRED)
+include_directories( ${Boost_INCLUDE_DIRS} )
 
 find_package(Numa REQUIRED)
 include_directories(${NUMA_INCLUDE_DIR})
@@ -122,7 +125,9 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DGPU -DDEBUG -O0 -g")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DGPU")
 
 SET(SOURCE_FILES
+        src/util/helper.cpp
         src/main.cu
+        src/parse_cmdline.cpp
         src/cpu.cpp
         # expl_comp_strat/common.cpp
         src/expl_comp_strat/tpch_kit.cpp
@@ -134,7 +139,7 @@ SET(SOURCE_FILES
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "bin")
 cuda_add_executable(tpch_q1 ${SOURCE_FILES})
 add_dependencies(tpch_q1 cuda-api-wrappers_project)
-target_link_libraries(tpch_q1 ${LIBS} ${NUMA_LIBRARY} cuda-api-wrappers)
+target_link_libraries(tpch_q1 ${LIBS} ${NUMA_LIBRARY} ${Boost_PROGRAM_OPTIONS_LIBRARY} cuda-api-wrappers)
 
 ##########################
 ## Data table generation

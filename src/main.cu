@@ -1,3 +1,5 @@
+#include "q1_params.hpp"
+#include "parse_cmdline.hpp"
 #include "data_types.h"
 #include "util/helper.hpp"
 #include "util/extra_pointer_traits.hpp"
@@ -182,187 +184,6 @@ const std::unordered_map<string, cuda::grid_block_dimension_t> fixed_threads_per
 const std::unordered_map<string, cuda::grid_block_dimension_t> max_threads_per_block = {
     { "shared_mem_per_thread", kernels::shared_mem::one_table_per_thread::max_threads_per_block },
 };
-
-void print_help(int argc, char** argv) {
-    fprintf(stderr, "Unrecognized command line option.\n");
-    fprintf(stderr, "Usage: %s [args]\n", argv[0]);
-    fprintf(stderr, "   --device=[default:%u] (number, e.g. 1)\n", cuda::device::default_device_id);
-    fprintf(stderr, "   --apply-compression\n");
-    fprintf(stderr, "   --print-results\n");
-    fprintf(stderr, "   --use-filter-pushdown\n");
-    fprintf(stderr, "   --use-coprocessing\n");
-    fprintf(stderr, "   --hash-table-placement=[default:in_registers_per_thread]\n"
-                    "     (one of: ");
-    int remaining = plain_kernels.size();
-    for (auto p : plain_kernels) {
-        fprintf(stderr, "%s%s", p.first.c_str(), (--remaining == 0 ? ")\n" : ", "));
-    }
-    fprintf(stderr, "   --runs=[default:%u] (number, e.g. 1 - 100)\n", (unsigned) defaults::num_query_execution_runs);
-    fprintf(stderr, "   --sf=[default:%f] (number, e.g. 0.01 - 100)\n", defaults::scale_factor);
-    fprintf(stderr, "   --cpu-fraction=[default:%f] (number, e.g. 0.5 - 100)\n", defaults::cpu_coprocessing_fraction);
-    fprintf(stderr, "   --streams=[default:%u] (number, e.g. 1 - 64)\n", defaults::num_gpu_streams);
-    fprintf(stderr, "   --threads-per-block=[default:%u] (number, e.g. 32 - 1024)\n", defaults::num_threads_per_block);
-    fprintf(stderr, "   --tuples_per_thread=[default:%u] (number, e.g. 1 - 1048576)\n", defaults::num_tuples_per_thread);
-    fprintf(stderr, "   --tuples-per-kernel-launch=[default:%u] (number, e.g. 64 - 4194304)\n", defaults::num_tuples_per_kernel_launch);
-}
-
-
-struct q1_params_t {
-
-    // Command-line-settable parameters
-
-    cuda::device::id_t cuda_device_id    { cuda::device::default_device_id };
-    double scale_factor                  { defaults::scale_factor };
-    std::string kernel_variant           { defaults::kernel_variant };
-    bool should_print_results            { defaults::should_print_results };
-    bool use_filter_pushdown             { false };
-    bool apply_compression               { defaults::apply_compression };
-    int num_gpu_streams                  { defaults::num_gpu_streams };
-    cuda::grid_block_dimension_t num_threads_per_block
-                                         { defaults::num_threads_per_block };
-    int num_tuples_per_thread            { defaults::num_tuples_per_thread };
-
-    int num_tuples_per_kernel_launch     { defaults::num_tuples_per_kernel_launch };
-        // Make sure it's a multiple of num_threads_per_block and of warp_size, or bad things may happen
-
-    // This is the number of times we run the actual query execution - the part that we time;
-    // it will not include initialization/allocations that are not necessary when the DBMS
-    // is brought up. Note the allocation vs sub-allocation issue (see further comments below)
-    int num_query_execution_runs         { defaults::num_query_execution_runs };
-
-    bool use_coprocessing                { false };
-
-    // The fraction of the total table (i.e. total number of tuples) which the CPU, rather than
-    // the GPU, will undertake to process; this ignores any filter precomputation work.
-    double cpu_processing_fraction       { defaults::cpu_coprocessing_fraction };
-    bool user_set_num_threads_per_block  { false };
-};
-
-inline std::ostream& operator<<(std::ostream& os, const q1_params_t& p)
-{
-    os << "SF = " << p.scale_factor << " | "
-       << "kernel = " << p.kernel_variant << " | "
-       << (p.use_filter_pushdown ? "filter precomp" : "") << " | "
-       << (p.apply_compression ? "compressed" : "uncompressed" ) << " | "
-       << "streams = " << p.num_gpu_streams << " | "
-       << "block size = " << p.num_threads_per_block << " | "
-       << "tuples per thread = " << p.num_tuples_per_thread << " | "
-       << "batch size " << p.num_tuples_per_kernel_launch;
-    return os;
-}
-
-q1_params_t parse_command_line(int argc, char** argv)
-{
-    q1_params_t params;
-
-    for(int i = 1; i < argc; i++) {
-        auto arg = string(argv[i]);
-        if (arg.substr(0,2) != "--") {
-            print_help(argc, argv);
-            exit(EXIT_FAILURE);
-        }
-        arg = arg.substr(2);
-        if (arg == "list-devices") {
-            get_device_properties();
-            exit(1);
-        } else if (arg == "use-coprocessing") {
-            params.use_coprocessing = true;
-        } else if (arg == "apply-compression") {
-            params.apply_compression = true;
-        } else if (arg == "use-filter-pushdown") {
-            params.use_filter_pushdown = true;
-        }  else if (arg == "print-results") {
-            params.should_print_results = true;
-        } else {
-            // A  name=value argument
-            auto p = split_once(arg, '=');
-            auto& arg_name = p.first; auto& arg_value = p.second;
-            if (arg_name == "scale-factor") {
-                params.scale_factor = std::stod(arg_value);
-                if (params.scale_factor - 0 < 0.001) {
-                    cerr << "Invalid scale factor " + std::to_string(params.scale_factor) << endl;
-                    exit(EXIT_FAILURE);
-                }
-            } else if (arg_name == "hash-table-placement") {
-                params.kernel_variant = arg_value;
-                if (plain_kernels.find(params.kernel_variant) == plain_kernels.end()) {
-                    cerr << "No kernel variant named \"" + params.kernel_variant + "\" is available" << endl;
-                    exit(EXIT_FAILURE);
-                }
-            } else if (arg_name == "device") {
-                params.cuda_device_id = std::stod(arg_value);
-                if ((params.cuda_device_id < 0) or (cuda::device::count() <= params.cuda_device_id)) {
-                    cerr << "Invalid device number " << params.cuda_device_id << endl;
-                    exit(EXIT_FAILURE);
-                }
-            } else if (arg_name == "streams") {
-                params.num_gpu_streams = std::stoi(arg_value);
-            } else if (arg_name == "tuples-per-thread") {
-                params.num_tuples_per_thread = std::stoi(arg_value);
-            } else if (arg_name == "threads-per-block") {
-                params.num_threads_per_block = std::stoi(arg_value);
-                params.user_set_num_threads_per_block = true;
-                if (params.num_threads_per_block % cuda::warp_size != 0) {
-                    cerr << "All kernels only support numbers of threads per grid block "
-                         << "which are multiples of the warp size (" << cuda::warp_size << ")" << endl;
-                    exit(EXIT_FAILURE);
-                }
-            } else if (arg_name == "tuples-per-kernel-launch") {
-                params.num_tuples_per_kernel_launch = std::stoi(arg_value);
-            } else if (arg_name == "runs") {
-                try {
-                    params.num_query_execution_runs = std::stoi(arg_value);
-                    if (params.num_query_execution_runs <= 0) {
-                        cerr << "Number of runs must be positive" << endl;
-                        exit(EXIT_FAILURE);
-                    }
-                } catch(std::invalid_argument) {
-                    cerr << "Cannot parse the number of runs passed after --runs=" << endl;
-                    exit(EXIT_FAILURE);
-                }
-            } else if (arg_name == "cpu-fraction") {
-                try {
-                    params.cpu_processing_fraction = std::stod(arg_value);
-                    if (params.cpu_processing_fraction < 0 or params.cpu_processing_fraction > 1.0) {
-                        cerr << "The fraction of aggregation work be performed by the CPU must be in the range 0.0 - 1.0" << endl;
-                        exit(EXIT_FAILURE);
-                    }
-                } catch(std::invalid_argument) {
-                    cerr << "Cannot parse the fraction passed after --cpu-fraction=" << endl;
-                    exit(EXIT_FAILURE);
-                }
-            } else {
-                print_help(argc, argv);
-                exit(EXIT_FAILURE);
-            }
-        }
-    }
-    if (params.use_filter_pushdown and not params.apply_compression) {
-        cerr << "Filter precomputation is only currently supported when compression is applied; "
-                "invoke with \"--apply-compression\"." << endl;
-        exit(EXIT_FAILURE);
-    }
-    if (fixed_threads_per_block.find(params.kernel_variant) != fixed_threads_per_block.end()) {
-        auto required_num_thread_per_block = fixed_threads_per_block.at(params.kernel_variant);
-        if (params.user_set_num_threads_per_block and params.num_threads_per_block != required_num_thread_per_block) {
-            throw std::invalid_argument("Invalid number of threads per block for kernel variant "
-                + params.kernel_variant + " (it must be "
-                + std::to_string(required_num_thread_per_block) + ")");
-        }
-        params.num_threads_per_block = fixed_threads_per_block.at(params.kernel_variant);
-    }
-    else if (max_threads_per_block.find(params.kernel_variant) != max_threads_per_block.end()) {
-        auto max_threads_per_block_for_kernel_variant = max_threads_per_block.at(params.kernel_variant);
-        if (params.user_set_num_threads_per_block and
-            (max_threads_per_block_for_kernel_variant < params.num_threads_per_block)) {
-            throw std::invalid_argument("Number of threads per block set for kernel variant "
-                + params.kernel_variant + " exceeds the maximum possible value of "
-                + std::to_string(max_threads_per_block_for_kernel_variant));
-        }
-        params.num_threads_per_block = max_threads_per_block_for_kernel_variant;
-    }
-    return params;
-}
 
 void precompute_filter_for_table_chunk(
     const compressed::ship_date_t*  __restrict__  compressed_ship_date,
@@ -716,9 +537,9 @@ void execute_query_1_once(
         auto launch_config = cuda::make_launch_config(num_blocks, num_threads_per_block);
 
 //        cout << "Launch parameters:\n"
-//             << "\tnum_tuples_for_this_launch  = " << num_tuples_for_this_launch << '\n'
-//             << "\tgrid blocks                 = " << num_blocks << '\n'
-//             << "\tthreads per block           = " << num_threads_per_block << '\n';
+//             << "    num_tuples_for_this_launch  = " << num_tuples_for_this_launch << '\n'
+//             << "    grid blocks                 = " << num_blocks << '\n'
+//             << "    threads per block           = " << num_threads_per_block << '\n';
 
         if (params.use_filter_pushdown) {
             assert(params.apply_compression && "Filter pre-computation is only currently supported when compression is employed");
