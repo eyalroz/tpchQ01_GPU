@@ -1,12 +1,16 @@
 #pragma once
-#ifndef Q1_PARAMS_H_
-#define Q1_PARAMS_H_
+#ifndef COMMON_HPP_
+#define COMMON_HPP_
 
 #include "data_types.h"
 #include "constants.hpp"
 
 #include <iostream>
+#include <unordered_map>
 #include <cuda/api_wrappers.h>
+
+
+enum : bool { is_compressed = true, is_not_compressed = false};
 
 struct q1_params_t {
 
@@ -50,5 +54,11 @@ inline std::ostream& operator<<(std::ostream& os, const q1_params_t& p)
     return os;
 }
 
+extern const std::unordered_map<std::string, cuda::device_function_t> kernels_filter_pushdown;
+extern const std::unordered_map<std::string, cuda::device_function_t> kernels_compressed;
+extern const std::unordered_map<std::string, cuda::device_function_t> plain_kernels;
+extern const std::unordered_map<std::string, cuda::grid_block_dimension_t> fixed_threads_per_block;
+extern const std::unordered_map<std::string, cuda::grid_block_dimension_t> max_threads_per_block;
 
-#endif // Q1_PARAMS_H_
+
+#endif // COMMON_HPP_

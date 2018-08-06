@@ -125,8 +125,9 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DGPU -DDEBUG -O0 -g")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DGPU")
 
 SET(SOURCE_FILES
+        src/execute_q1.cu
         src/util/helper.cpp
-        src/main.cu
+        src/main.cpp
         src/parse_cmdline.cpp
         src/cpu.cpp
         # expl_comp_strat/common.cpp
