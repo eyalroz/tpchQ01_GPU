@@ -46,9 +46,9 @@ find_package(Numa REQUIRED)
 include_directories(${NUMA_INCLUDE_DIR})
 
 ExternalProject_Add(cuda-api-wrappers_project  # Name for custom target
-#	PREFIX cuda-api-wrappers # Root dir for entire project
-#  [TMP_DIR dir]               # Directory to store temporary files
-#  [STAMP_DIR dir]             # Directory to store step timestamps
+	PREFIX CMakeFiles/cuda-api-wrappers_project # Root dir for entire project
+	TMP_DIR CMakeFiles/cuda-api-wrappers_project/tmp # Directory to store temporary files
+	STAMP_DIR CMakeFiles/cuda-api-wrappers_project/stamp # Directory to store step timestamps
 # #--Download step--------------
 	GIT_REPOSITORY git@github.com:eyalroz/cuda-api-wrappers.git        # URL of git repo
 #	GIT_CONFIG "advice.detachedHead=false"
@@ -57,7 +57,7 @@ ExternalProject_Add(cuda-api-wrappers_project  # Name for custom target
 # #--Update/Patch step----------
 	UPDATE_COMMAND ""     # Source work-tree update command
 # #--Configure step-------------
-	SOURCE_DIR cuda-api-wrappers            # Source dir to be used for build
+	SOURCE_DIR "${CMAKE_SOURCE_DIR}/cuda-api-wrappers"            # Source dir to be used for build
 #	CMAKE_CACHE_ARGS "-DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_BINARY_DIR}" # Initial cache arguments, of the form -Dvar:string=on
 # #--Build step-----------------
 #	BINARY_DIR "caw-build"            # Specify build dir location
