@@ -13,7 +13,7 @@ This repository should be a stand-in for the forked one, with the main differenc
 
 #### TPC-H Query 01 execution times:
 
-(to be filled in; for now, use the table in the published [paper[((https://www.researchgate.net/publication/280626545).)
+(to be filled in; for now, use the table in the published [paper](https://www.researchgate.net/publication/280626545).)
 
 ## Prerequisites
 
