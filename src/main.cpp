@@ -1,4 +1,3 @@
-#include "common.hpp"
 #include "parse_cmdline.hpp"
 #include "execute_q1.hpp"
 #include "data_types.hpp"

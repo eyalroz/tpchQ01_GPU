@@ -3,7 +3,6 @@
 #include "data_types.hpp"
 #include "util/helper.hpp"
 #include "constants.hpp"
-#include "expl_comp_strat/common.hpp"
 #include "cpu/common.hpp"
 
 #include <boost/program_options.hpp>
