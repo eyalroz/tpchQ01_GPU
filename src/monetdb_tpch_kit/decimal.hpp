@@ -1,6 +1,6 @@
 #pragma once
-#ifndef DECIMAL_HPP_
-#define DECIMAL_HPP_
+#ifndef MONETDB_DECIMAL_HPP_
+#define MONETDB_DECIMAL_HPP_
 
 #include <cstdint>
 #include <cassert>

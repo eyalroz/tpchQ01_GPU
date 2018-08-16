@@ -7,7 +7,7 @@
 #include <cmath>
 #include <limits>
 #include "allocator.hpp"
-#include "monetdb.hpp"
+#include "date.hpp"
 #include "decimal.hpp" // Not actually used in this header, but necessary
 
 struct SkipCol {
@@ -23,16 +23,6 @@ struct Char {
 		chr_val = v[0];
 	}
 };
-
-struct Date {
-	static bool parse(const char* first, const char* last, int& day, int& month, int& year);
-
-	int dte_val;
-
-	Date(const char* v, int64_t len = -1, int plus_days = 0);
-};
-
-
 
 template<typename T = int64_t>
 struct MinMax {
