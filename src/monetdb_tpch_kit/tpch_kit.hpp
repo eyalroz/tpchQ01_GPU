@@ -6,7 +6,7 @@
 #include <cassert>
 #include <cmath>
 #include <limits>
-#include "allocator.hpp"
+#include "buffer.hpp"
 #include "date.hpp"
 #include "decimal.hpp" // Not actually used in this header, but necessary
 
