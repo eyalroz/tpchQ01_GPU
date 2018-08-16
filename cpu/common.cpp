@@ -1,6 +1,8 @@
 #include "common.hpp"
 #include <cassert>
 
+static const Date threshold_ship_date = Date::from_raw_days(729999); // September 2nd, 1998
+
 #define clear(x) memset(x, 0, sizeof(x[0]) * MAX_GROUPS)
 #define clear_avx(x) memset(x, 0, sizeof(x[0]) * AVX_GROUPS)
 
@@ -57,7 +59,7 @@ BaseKernel::Profile(size_t total_tuples)
 }
 
 BaseKernel::BaseKernel(const lineitem& li)
- : cmp(Date("1998-12-01", -1, -90) /* 1998-12-01 minus 90 days is */),
+ : cmp(threshold_ship_date),
 	li(li), sum_aggr_time(0), sum_magic_time(0)
 {
 	aggrs0 = new_array<AggrHashTable>(MAX_GROUPS);

@@ -1,30 +1,37 @@
 #ifndef MONETDB_DATE_HPP_
 #define MONETDB_DATE_HPP_
 
-#include "monetdb.hpp"
-
 #include <cstdint>
 #include <cstring>
 #include <cassert>
+#include <string>
+#include <climits>
 
-struct Date {
-	static bool parse(const char* first, const char* last, int& day, int& month, int& year);
+class Date {
+public:
 
-	int dte_val;
+	int dte_val; // sort of, kind of, days since Jan 1st Year 1
 
-	Date(const char* v, int64_t len = -1, int plus_days = 0)
-	{
-		if (len < 0) {
-			assert(len == -1);
-			len = strlen(v);
-		}
-		int day = 0, month = 0, year = 0;
-		if (!parse(v, v + len, day, month, year)) {
-			assert(false);
-		}
-		dte_val = todate(day, month, year);
-		dte_val += plus_days;
-	}
+//	static bool parse(const char* first, const char* last, int& day, int& month, int& year);
+	static constexpr Date from_raw_days(int raw_days) { return Date(raw_days); }
+
+	enum { date_nil	= INT_MIN };
+		// MonetDB dates sacrifice a certain value to represent the SQL NULL value
+
+protected:
+	constexpr Date(int val) : dte_val (val) { }
+
+public:
+	Date() : Date(date_nil) { }
+	Date(Date&& d) = default;
+	Date(const Date& d) = default;
+	Date(const char* v) : Date(v, std::strlen(v)) { };
+	Date(const char* v, std::size_t length);
+	Date(int year, int month, int day);
+
+public:
+	bool is_nil() const { return dte_val == date_nil; }
+	void add_days(int num_days) { dte_val += num_days; }
 };
 
 #endif

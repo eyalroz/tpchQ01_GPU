@@ -34,6 +34,5 @@ add_executable(
 	../src/monetdb_tpch_kit/tpch_kit.cpp
 	vectorized.cpp
 	common.cpp
-	../src/monetdb_tpch_kit/monetdb.cpp
 )
 target_link_libraries(q1 ${CMAKE_THREAD_LIBS_INIT} ${NUMA_LIBRARY} ${PAPI_LIBRARIES} ${NUMA_LIBRARY})
