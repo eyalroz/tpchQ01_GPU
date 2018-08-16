@@ -1,10 +1,10 @@
-#ifndef H_CPU
-#define H_CPU
+#ifndef CPU_HPP_
+#define CPU_HPP_
 
 struct lineitem;
 
 #include <string>
-#include "util/blockingconcurrentqueue.h"
+#include "util/blockingconcurrentqueue.hpp"
 
 struct CPUKernel;
 struct AggrHashTable;

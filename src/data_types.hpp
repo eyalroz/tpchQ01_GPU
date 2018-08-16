@@ -1,6 +1,6 @@
 #pragma once
 
-#include "util/preprocessor_shorthands.h"
+#include "util/preprocessor_shorthands.hpp"
 
 #include <cuda/api_wrappers.h>
 

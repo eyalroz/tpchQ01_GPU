@@ -1,6 +1,6 @@
 #include "parse_cmdline.hpp"
 
-#include "data_types.h"
+#include "data_types.hpp"
 #include "util/helper.hpp"
 #include "constants.hpp"
 #include "expl_comp_strat/common.hpp"

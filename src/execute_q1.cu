@@ -1,5 +1,5 @@
 #include "execute_q1.hpp"
-#include "data_types.h"
+#include "data_types.hpp"
 #include "constants.hpp"
 #include "kernels/ht_in_global_mem.cuh"
 #include "kernels/ht_in_registers.cuh"
@@ -9,7 +9,7 @@
 #include "kernels/ht_in_shared_mem_per_bank.cuh"
 #include "kernels/ht_in_shared_mem_per_block.cuh"
 #include "cpu/common.hpp"
-#include "cpu.h"
+#include "cpu.hpp"
 
 #include "util/helper.hpp"
 #include "util/extra_pointer_traits.hpp"

@@ -1,11 +1,11 @@
 #include "common.hpp"
 #include "parse_cmdline.hpp"
 #include "execute_q1.hpp"
-#include "data_types.h"
+#include "data_types.hpp"
 #include "constants.hpp"
 #include "expl_comp_strat/tpch_kit.hpp"
 #include "cpu/common.hpp"
-#include "cpu.h"
+#include "cpu.hpp"
 
 #include "util/helper.hpp"
 #include "util/extra_pointer_traits.hpp"

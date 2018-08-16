@@ -1,4 +1,4 @@
-#include "cpu.h"
+#include "cpu.hpp"
 #include "cpu/common.hpp"
 #include "cpu/vectorized.hpp"
 #include "cpu/tpch_kit.hpp"

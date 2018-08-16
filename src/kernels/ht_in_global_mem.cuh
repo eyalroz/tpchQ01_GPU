@@ -1,10 +1,10 @@
 #pragma once
 
 #include "expl_comp_strat/common.hpp"
-#include "util/preprocessor_shorthands.h"
+#include "util/preprocessor_shorthands.hpp"
 #include "util/atomics.cuh"
 #include "constants.hpp"
-#include "data_types.h"
+#include "data_types.hpp"
 #include "util/bit_operations.hpp"
 
 namespace kernels {

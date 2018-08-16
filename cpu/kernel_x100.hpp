@@ -417,7 +417,7 @@ void precompute_filter_for_table_chunk(
     uint32_t*                __restrict__  precomputed_filter,
     uint32_t                                 num_tuples);
 
-#include "../src/cpu.h"
+#include "../src/cpu.hpp"
 
 template<typename KERNEL, bool full_system = true>
 struct Morsel : BaseKernel {

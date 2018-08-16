@@ -2,7 +2,7 @@
 #ifndef COMMON_HPP_
 #define COMMON_HPP_
 
-#include "data_types.h"
+#include "data_types.hpp"
 #include "constants.hpp"
 
 #include <iostream>

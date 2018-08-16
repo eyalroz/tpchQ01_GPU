@@ -4,7 +4,7 @@
 
 #include "common.hpp"
 #include "util/helper.hpp"
-#include "cpu.h"
+#include "cpu.hpp"
 
 #include <vector>
 #include <cuda/api_wrappers.h>
