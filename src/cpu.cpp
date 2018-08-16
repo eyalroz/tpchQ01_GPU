@@ -1,7 +1,6 @@
 #include "cpu.hpp"
 #include "cpu/common.hpp"
 #include "cpu/vectorized.hpp"
-#include "cpu/tpch_kit.hpp"
 #include "cpu/kernel_x100.hpp"
 
 uint32_t* precomp_filter = nullptr;

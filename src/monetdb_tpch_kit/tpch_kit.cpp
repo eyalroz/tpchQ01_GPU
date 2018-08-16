@@ -1,5 +1,4 @@
 #include "tpch_kit.hpp"
-#include "common.hpp"
 
 #include <fstream>
 #include <cassert>

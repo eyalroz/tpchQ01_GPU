@@ -130,9 +130,8 @@ SET(SOURCE_FILES
         src/main.cpp
         src/parse_cmdline.cpp
         src/cpu.cpp
-        # expl_comp_strat/common.cpp
-        src/expl_comp_strat/tpch_kit.cpp
-        src/expl_comp_strat/monetdb.cpp
+        src/monetdb_tpch_kit/tpch_kit.cpp
+        src/monetdb_tpch_kit/monetdb.cpp
         cpu/vectorized.cpp
         cpu/common.cpp
         )

@@ -2,7 +2,7 @@
 #include "execute_q1.hpp"
 #include "data_types.hpp"
 #include "constants.hpp"
-#include "expl_comp_strat/tpch_kit.hpp"
+#include "monetdb_tpch_kit/tpch_kit.hpp"
 #include "cpu/common.hpp"
 #include "cpu.hpp"
 

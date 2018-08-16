@@ -7,7 +7,7 @@
 
 #include <sstream>
 #include <vector>
-#include "tpch_kit.hpp"
+#include "../src/monetdb_tpch_kit/tpch_kit.hpp"
 #include <limits>
 #include <cinttypes>
 

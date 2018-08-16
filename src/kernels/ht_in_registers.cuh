@@ -13,7 +13,7 @@
  */
 #pragma once
 
-#include "expl_comp_strat/tpch_kit.hpp"
+#include "monetdb_tpch_kit/tpch_kit.hpp"
 #include "util/preprocessor_shorthands.hpp"
 #include "util/atomics.cuh"
 #include "constants.hpp"

@@ -26,5 +26,5 @@ find_package(Boost 1.45.0 COMPONENTS filesystem)
 
 include_directories( ${Boost_INCLUDE_DIRS} )
 
-add_executable(q1 q1.cpp tpch_kit.cpp vectorized.cpp common.cpp monetdb.cpp)
+add_executable(q1 q1.cpp ../src/monetdb_tpch_kit/tpch_kit.cpp vectorized.cpp common.cpp ../src/monetdb_tpch_kit/monetdb.cpp)
 target_link_libraries(q1 ${CMAKE_THREAD_LIBS_INIT} ${NUMA_LIBRARY} ${PAPI_LIBRARIES} ${NUMA_LIBRARY})

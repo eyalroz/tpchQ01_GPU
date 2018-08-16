@@ -3,7 +3,6 @@
 #include <time.h>
 #include "common.hpp"
 #include "vectorized.hpp"
-#include "tpch_kit.hpp"
 
 #include "kernel_naive.hpp"
 #include "kernel_naive_compact.hpp"
