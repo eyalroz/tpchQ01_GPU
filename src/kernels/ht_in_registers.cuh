@@ -13,15 +13,13 @@
  */
 #pragma once
 
-#include "monetdb_tpch_kit/tpch_kit.hpp"
+#include "monetdb_tpch_kit/decimal.hpp"
 #include "util/preprocessor_shorthands.hpp"
 #include "util/atomics.cuh"
 #include "constants.hpp"
 #include "data_types.hpp"
 #include "util/bit_operations.hpp"
 #include <stdio.h>
-
-using Decimal64 = Decimal<15, 2>;
 
 namespace kernels {
 namespace in_registers {

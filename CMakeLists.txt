@@ -131,6 +131,7 @@ SET(SOURCE_FILES
         src/parse_cmdline.cpp
         src/cpu.cpp
         src/monetdb_tpch_kit/tpch_kit.cpp
+        src/monetdb_tpch_kit/decimal.cpp
         src/monetdb_tpch_kit/monetdb.cpp
         cpu/vectorized.cpp
         cpu/common.cpp
