@@ -117,20 +117,4 @@ lineitem::FromFile(const std::string& file)
 
 	const clock_t end = clock();
 	const double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
-
-#ifdef PRINT_MINMAX
-	printf("loaded %zu tuples in %.2fs i.e. %.2f kTuples/s\n", l_quantity.cardinality, elapsed_secs, (double)l_quantity.cardinality / elapsed_secs / 1000.0);
-
-
-	#define mm(name) printf("%s min=%lld max=%lld diff=%lld\n", #name, l_##name.minmax.min, l_##name.minmax.max, l_##name.minmax.max - l_##name.minmax.min)
-
-	mm(quantity);
-	mm(extendedprice);
-	mm(discount);
-	mm(tax);
-	mm(returnflag);
-	mm(linestatus);
-	mm(shipdate);
-	#undef mm
-#endif
 }

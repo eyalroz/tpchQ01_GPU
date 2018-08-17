@@ -2,8 +2,6 @@
 
 #include "util/preprocessor_shorthands.hpp"
 
-#include <cuda/api_wrappers.h>
-
 #include <cstdint>
 #include <cstddef>
 #include <exception>
@@ -37,8 +35,13 @@ using return_flag_t          = uint8_t; // Don't use this!
 using line_status_t          = uint8_t; // Don't use this!
 } // namespace compressed
 
-using bit_container_t             = cuda::native_word_t;
-static_assert(std::is_same<bit_container_t,uint32_t>{}, "Expecting the bit container to hold 32 bits");
+using bit_container_t             = uint32_t;
+// static_assert(std::is_same<bit_container_t,uint32_t>{}, "Expecting the bit container to hold 32 bits");
+
+// Used to distinguish between uncompressed and compressed types,
+// which is why this anonymous enum has been moved here
+enum : bool { is_compressed = true, is_not_compressed = false};
+
 
 /**
  * Applies a DICT(1 bit) encoding scheme to line status values

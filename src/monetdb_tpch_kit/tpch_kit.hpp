@@ -24,6 +24,7 @@ struct Char {
 	}
 };
 
+namespace detail {
 template<typename T = int64_t>
 struct MinMax {
 	int64_t min = std::numeric_limits<T>::max();
@@ -38,12 +39,13 @@ struct MinMax {
 		}
 	}
 };
+} // namespace detail
 
 template<typename T>
 struct Column : Buffer<T> {
 	size_t cardinality;
 
-	MinMax<T> minmax;
+	detail::MinMax<T> minmax;
 
 	Column(size_t init_cap)
 	 : Buffer<T>(init_cap), cardinality(0) {

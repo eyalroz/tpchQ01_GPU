@@ -10,8 +10,6 @@
 #include <cuda/api_wrappers.h>
 
 
-enum : bool { is_compressed = true, is_not_compressed = false};
-
 struct q1_params_t {
 
     cuda::device::id_t cuda_device_id    { cuda::device::default_device_id };

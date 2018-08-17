@@ -8,6 +8,7 @@
 #pragma once
 
 #include "extra_pointer_traits.hpp"
+#include "ptr_wrappers.hpp"
 
 #include <cuda_runtime.h>
 #include <cuda/api_wrappers.h>
@@ -20,12 +21,6 @@
 #include <ctime>
 #include <chrono>
 
-
-template <typename T>
-using plugged_unique_ptr = std::unique_ptr<T>;
-
-template <typename T>
-using plain_ptr = std::conditional_t<std::is_array<T>::value, std::decay_t<T>, std::decay_t<T>*>;
 
 inline void assert_always(bool a) {
     assert(a);
