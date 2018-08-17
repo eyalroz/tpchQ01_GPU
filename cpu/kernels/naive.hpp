@@ -1,7 +1,7 @@
 #ifndef H_KERNEL_NAIVE
 #define H_KERNEL_NAIVE
 
-#include "common.hpp"
+#include "../common.hpp"
 
 struct KernelNaive : BaseKernel {
 	using BaseKernel::BaseKernel;

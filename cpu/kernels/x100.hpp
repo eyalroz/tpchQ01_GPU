@@ -1,7 +1,7 @@
 #ifndef H_KERNEL_X100
 #define H_KERNEL_X100
 
-#include "common.hpp"
+#include "../common.hpp"
 #include <cinttypes>
 
 enum AggrFlavour {
@@ -417,7 +417,7 @@ void precompute_filter_for_table_chunk(
     uint32_t*                __restrict__  precomputed_filter,
     uint32_t                                 num_tuples);
 
-#include "../src/cpu.hpp"
+#include "../../src/cpu.hpp"
 
 template<typename KERNEL, bool full_system = true>
 struct Morsel : BaseKernel {

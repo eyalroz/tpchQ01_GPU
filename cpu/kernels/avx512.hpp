@@ -1,7 +1,7 @@
 #ifndef H_KERNEL_AVX512
 #define H_KERNEL_AVX512
 
-#include "common.hpp"
+#include "../common.hpp"
 
 #ifdef __AVX512F__
 #include <x86intrin.h>

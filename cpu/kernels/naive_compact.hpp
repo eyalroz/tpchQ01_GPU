@@ -1,7 +1,7 @@
 #ifndef H_KERNEL_NAIVE_COMPACT
 #define H_KERNEL_NAIVE_COMPACT
 
-#include "common.hpp"
+#include "../common.hpp"
 
 struct KernelNaiveCompact : BaseKernel {
 	kernel_compact_declare

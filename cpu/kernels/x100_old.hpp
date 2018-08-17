@@ -1,7 +1,7 @@
 #ifndef H_KERNEL_X100_OLD
 #define H_KERNEL_X100_OLD
 
-#include "common.hpp"
+#include "../common.hpp"
 
 enum ProjectFlavour {
 	kSinglePrims

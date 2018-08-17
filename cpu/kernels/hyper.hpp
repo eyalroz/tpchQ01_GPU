@@ -1,7 +1,7 @@
 #ifndef H_KERNEL_HYPER
 #define H_KERNEL_HYPER
 
-#include "common.hpp"
+#include "../common.hpp"
 
 template<bool use_flag>
 struct KernelHyPer : BaseKernel {

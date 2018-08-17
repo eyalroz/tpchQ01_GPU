@@ -1,7 +1,7 @@
 #ifndef H_KERNEL_HYPER_COMPACT
 #define H_KERNEL_HYPER_COMPACT
 
-#include "common.hpp"
+#include "../common.hpp"
 
 template<bool use_flag>
 struct KernelHyPerCompact : BaseKernel {
