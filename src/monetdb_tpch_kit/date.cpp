@@ -1,3 +1,11 @@
+/*
+ * The contents of this file are subject to the terms of the Mozilla
+ * Public License, v. 2.0.  If a copy of the MPL was not distributed
+ * with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * Copyright 1997 - July 2008 CWI, August 2008 - 2016 MonetDB B.V.
+ * Copyright 2018 - Eyal Rozenberg <E.Rozenberg@cwi.nl>
+ */
 #include "date.hpp"
 
 #include <climits>
@@ -8,19 +16,9 @@
 #include <boost/spirit/include/phoenix_core.hpp>
 #include <boost/spirit/include/phoenix_operator.hpp>
 
-/*
- * Source Code from tis point onwards is subject to the terms of the
- * Mozilla Public License, v. 2.0.  If a copy of the MPL was not
- * distributed with this file, You can obtain one at
- * http://mozilla.org/MPL/2.0/.
- *
- * Copyright 1997 - July 2008 CWI, August 2008 - 2016 MonetDB B.V.
- */
+enum : int { int_nil = INT_MIN };
 
-const int int_nil = INT_MIN;
-
-typedef int date;
-#define date_isnil(X)	((X) == Date::date_nil)
+namespace monetdb {
 
 /* phony zero values, used to get negative numbers from unsigned
  * sub-integers in rule */
@@ -67,12 +65,12 @@ leapyears(int year)
 
 static int todate(int year, int month, int day)
 {
-	date n = Date::date_nil;
+	date_t::days_since_epoch_t n = date_t::date_nil;
 
 	if (DATE(day, month, year)) {
 		if (year < 0)
 			year++;				/* HACK: hide year 0 */
-		n = (date) (day - 1);
+		n = (date_t::days_since_epoch_t) (day - 1);
 		if (month > 2 && leapyear(year))
 			n++;
 		n += CUMDAYS[month - 1];
@@ -82,9 +80,9 @@ static int todate(int year, int month, int day)
 	return n;
 }
 
-Date::Date(int year, int month, int day) : dte_val(todate(year, month, day)) { }
+date_t::date_t(int year, int month, int day) : dte_val(todate(year, month, day)) { }
 
-Date::Date(const char* v, std::size_t length)
+date_t::date_t(const char* v, std::size_t length)
 {
 	int day = 0, month = 0, year = 0;
 
@@ -107,11 +105,11 @@ Date::Date(const char* v, std::size_t length)
 }
 
 
-void fromdate(date n, int *d, int *m, int *y)
+void fromdate(date_t::days_since_epoch_t n, int *d, int *m, int *y)
 {
 	int day, month, year;
 
-	if (n == Date::date_nil) {
+	if (n == date_t::date_nil) {
 		if (d)
 			*d = int_nil;
 		if (m)
@@ -170,3 +168,5 @@ void fromdate(date n, int *d, int *m, int *y)
 	if (y)
 		*y = (year <= 0) ? year - 1 : year;	/* HACK: hide year 0 */
 }
+
+} // namespace monetdb

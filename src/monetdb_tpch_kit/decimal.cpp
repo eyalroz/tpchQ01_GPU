@@ -1,3 +1,11 @@
+/*
+ * The contents of this file are subject to the terms of the Mozilla
+ * Public License, v. 2.0.  If a copy of the MPL was not distributed
+ * with this file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * Copyright 1997 - July 2008 CWI, August 2008 - 2016 MonetDB B.V.
+ * Copyright 2018 - Eyal Rozenberg <E.Rozenberg@cwi.nl>
+ */
 #include "decimal.hpp"
 
 #include <boost/config/warning_disable.hpp>
@@ -5,8 +13,11 @@
 #include <boost/spirit/include/phoenix_core.hpp>
 #include <boost/spirit/include/phoenix_operator.hpp>
 
+namespace monetdb {
+namespace detail {
+
 bool
-BaseDecimal::parse(const char* first, const char* last, int& intg, int& frac)
+parse_decimal(const char* first, const char* last, int& intg, int& frac)
 {
     using boost::spirit::qi::int_;
     using boost::spirit::qi::_1;
@@ -22,3 +33,6 @@ BaseDecimal::parse(const char* first, const char* last, int& intg, int& frac)
         return false;
     return r;
 }
+
+} // namespace detail
+} // namespace monetdb

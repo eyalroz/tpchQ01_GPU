@@ -99,10 +99,8 @@ public:
 void
 lineitem::FromFile(const std::string& file)
 {
-	using Decimal = Decimal<15, 2>;
-
 	const clock_t begin = clock();
-	TableReader<SkipCol, SkipCol, SkipCol, SkipCol, Decimal, Decimal, Decimal, Decimal, Char, Char, Date> reader;
+	TableReader<SkipCol, SkipCol, SkipCol, SkipCol, monetdb::decimal64_t, monetdb::decimal64_t, monetdb::decimal64_t, monetdb::decimal64_t, Char, Char, monetdb::date_t> reader;
 	reader.DoFile(file, [&] (auto t) {
 		assert(std::get<8>(t).chr_val);
 		assert(std::get<9>(t).chr_val);

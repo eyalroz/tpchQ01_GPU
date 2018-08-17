@@ -152,8 +152,8 @@ rdtsc()
 #endif
 }
 
-using Decimal64 = Decimal<15, 2>;
-using Decimal128 = Decimal<15, 2, int128_t>;
+using Decimal64 = monetdb::decimal_t<15, 2>;
+using Decimal128 = monetdb::decimal_t<15, 2, int128_t>;
 
 struct AggrHashTable {
 	int64_t sum_quantity;
@@ -209,7 +209,7 @@ public:
 };
 
 struct BaseKernel : IKernel {
-	const Date cmp;
+	const monetdb::date_t cmp;
 	const lineitem& li;
 
 	int64_t sum_aggr_time;

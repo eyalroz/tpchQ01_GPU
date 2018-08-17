@@ -1,7 +1,7 @@
 #include "common.hpp"
 #include <cassert>
 
-static const Date threshold_ship_date = Date::from_raw_days(729999); // September 2nd, 1998
+static const monetdb::date_t threshold_ship_date = monetdb::date_t::from_raw_days(729999); // September 2nd, 1998
 
 #define clear(x) memset(x, 0, sizeof(x[0]) * MAX_GROUPS)
 #define clear_avx(x) memset(x, 0, sizeof(x[0]) * AVX_GROUPS)

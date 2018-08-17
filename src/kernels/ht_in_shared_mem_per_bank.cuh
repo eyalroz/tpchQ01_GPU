@@ -89,10 +89,10 @@ void tpch_query_01(
             auto line_quantity         = quantity[i];
             auto line_discount         = discount[i];
             auto line_price            = extended_price[i];
-            auto line_discount_factor  = Decimal64::ToValue(1, 0) - line_discount;
-            auto line_discounted_price = Decimal64::Mul(line_discount_factor, line_price);
-            auto line_tax_factor       = tax[i] + Decimal64::ToValue(1, 0);
-            auto line_charge           = Decimal64::Mul(line_discounted_price, line_tax_factor);
+            auto line_discount_factor  = monetdb::decimal64_t::ToValue(1, 0) - line_discount;
+            auto line_discounted_price = monetdb::decimal64_t::Mul(line_discount_factor, line_price);
+            auto line_tax_factor       = tax[i] + monetdb::decimal64_t::ToValue(1, 0);
+            auto line_charge           = monetdb::decimal64_t::Mul(line_discounted_price, line_tax_factor);
             auto line_return_flag      = return_flag[i];
             auto line_status_          = line_status[i];
 
@@ -180,10 +180,10 @@ void tpch_query_01_compressed(
             auto line_quantity         = quantity[i];
             auto line_discount         = discount[i];
             auto line_price            = extended_price[i];
-            auto line_discount_factor  = Decimal64::ToValue(1, 0) - line_discount;
-            auto line_discounted_price = Decimal64::Mul(line_discount_factor, line_price);
-            auto line_tax_factor       = tax[i] + Decimal64::ToValue(1, 0);
-            auto line_charge           = Decimal64::Mul(line_discounted_price, line_tax_factor);
+            auto line_discount_factor  = monetdb::decimal64_t::ToValue(1, 0) - line_discount;
+            auto line_discounted_price = monetdb::decimal64_t::Mul(line_discount_factor, line_price);
+            auto line_tax_factor       = tax[i] + monetdb::decimal64_t::ToValue(1, 0);
+            auto line_charge           = monetdb::decimal64_t::Mul(line_discounted_price, line_tax_factor);
             auto line_return_flag      = get_bit_resolution_element<log_return_flag_bits, cardinality_t>(return_flag, i);
             auto line_status_          = get_bit_resolution_element<log_line_status_bits, cardinality_t>(line_status, i);
 
@@ -273,10 +273,10 @@ void tpch_query_01_compressed_precomputed_filter (
             auto line_quantity         = quantity[i];
             auto line_discount         = discount[i];
             auto line_price            = extended_price[i];
-            auto line_discount_factor  = Decimal64::ToValue(1, 0) - line_discount;
-            auto line_discounted_price = Decimal64::Mul(line_discount_factor, line_price);
-            auto line_tax_factor       = tax[i] + Decimal64::ToValue(1, 0);
-            auto line_charge           = Decimal64::Mul(line_discounted_price, line_tax_factor);
+            auto line_discount_factor  = monetdb::decimal64_t::ToValue(1, 0) - line_discount;
+            auto line_discounted_price = monetdb::decimal64_t::Mul(line_discount_factor, line_price);
+            auto line_tax_factor       = tax[i] + monetdb::decimal64_t::ToValue(1, 0);
+            auto line_charge           = monetdb::decimal64_t::Mul(line_discounted_price, line_tax_factor);
             auto line_return_flag      = get_bit_resolution_element<log_return_flag_bits, cardinality_t>(return_flag, i);
             auto line_status_          = get_bit_resolution_element<log_line_status_bits, cardinality_t>(line_status, i);
 

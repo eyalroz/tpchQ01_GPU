@@ -45,7 +45,7 @@ void print_results(const T& aggregates_on_host, cardinality_t cardinality) {
     cout << "+---------------------------------------------------- Results ------------------------------------------------------+\n";
     cout << "|  LS | RF |  sum_quantity        |  sum_base_price      |  sum_disc_price      |  sum_charge          | count      |\n";
     cout << "+-------------------------------------------------------------------------------------------------------------------+\n";
-    auto print_dec = [] (auto s, auto x) { printf("%s%17ld.%02ld", s, Decimal64::GetInt(x), Decimal64::GetFrac(x)); };
+    auto print_dec = [] (auto s, auto x) { printf("%s%17ld.%02ld", s, monetdb::decimal64_t::GetInt(x), monetdb::decimal64_t::GetFrac(x)); };
     cardinality_t total_passing { 0 };
 
     for (int group=0; group<num_potential_groups; group++) {
